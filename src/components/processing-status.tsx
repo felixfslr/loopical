@@ -2,13 +2,14 @@
 
 import { useRealtimeStatus } from '@/hooks/use-realtime-status'
 import type { ProcessingStatus } from '@/lib/types/database'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { AiLoader } from '@/components/ui/ai-loader'
+import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const statusMessages: Record<ProcessingStatus, string> = {
-  pending: 'Warte auf Verarbeitung...',
-  transcribing: 'Transkribiere Audio...',
-  analyzing: 'Analysiere Feedback mit AI...',
+  pending: 'Verarbeitung startet...',
+  transcribing: 'Transkribiere',
+  analyzing: 'Analysiere',
   complete: '',
   error: 'Verarbeitung fehlgeschlagen',
 }
@@ -49,11 +50,8 @@ export function ProcessingStatusWrapper({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-md bg-muted/50 p-3">
-      <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-      <span className="text-sm text-muted-foreground">
-        {statusMessages[status]}
-      </span>
+    <div className="flex flex-col items-center gap-3 rounded-md bg-muted/50 p-6">
+      <AiLoader size={100} text={statusMessages[status]} />
     </div>
   )
 }

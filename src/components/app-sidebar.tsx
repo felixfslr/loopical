@@ -6,6 +6,7 @@ import { LayoutDashboard, Settings, LogOut, Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { signOut } from '@/app/login/actions'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 
@@ -103,6 +104,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                 {user.email}
               </p>
             </div>
+            <ThemeToggle />
             <form action={signOut}>
               <Button variant="ghost" size="icon-sm" title="Abmelden">
                 <LogOut className="h-4 w-4" />
