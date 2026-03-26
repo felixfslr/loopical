@@ -1,15 +1,20 @@
 'use client'
 
 import { useActionState } from 'react'
-import { loginWithEmail, loginWithGoogle } from './actions'
+import { loginWithEmail, loginWithPassword } from './actions'
 import { Button } from '@/components/ui/button'
-import { Mail, Globe } from 'lucide-react'
+import { Mail, LogIn } from 'lucide-react'
 
 export default function LoginPage() {
-  const [state, formAction, isPending] = useActionState(loginWithEmail, {
-    error: null,
-    success: false,
-  })
+  const [magicLinkState, magicLinkAction, magicLinkPending] = useActionState(
+    loginWithEmail,
+    { error: null, success: false },
+  )
+
+  const [demoState, demoAction, demoPending] = useActionState(
+    loginWithPassword,
+    { error: null },
+  )
 
   return (
     <div className="flex min-h-full items-center justify-center px-4">
@@ -22,18 +27,30 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Google OAuth */}
-        <form action={loginWithGoogle}>
-          <Button
-            type="submit"
-            variant="outline"
-            className="w-full"
-            size="lg"
-          >
-            <Globe className="mr-2 h-4 w-4" />
-            Mit Google anmelden
-          </Button>
-        </form>
+        {/* Demo Login */}
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+          <p className="text-xs text-muted-foreground mb-3 text-center">
+            Demo-Account zum Testen
+          </p>
+          <form action={demoAction}>
+            <input type="hidden" name="email" value="demo@loopical.app" />
+            <input type="hidden" name="password" value="demo1234" />
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={demoPending}
+            >
+              <LogIn className="mr-2 h-4 w-4" />
+              {demoPending ? 'Wird angemeldet...' : 'Als Demo-User einloggen'}
+            </Button>
+          </form>
+          {demoState.error && (
+            <p className="text-sm text-destructive mt-2 text-center">
+              {demoState.error}
+            </p>
+          )}
+        </div>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
@@ -47,13 +64,13 @@ export default function LoginPage() {
         </div>
 
         {/* Email Magic Link */}
-        {state.success ? (
+        {magicLinkState.success ? (
           <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-4 text-center text-sm text-green-400">
             <Mail className="mx-auto mb-2 h-6 w-6" />
             Wir haben dir einen Magic Link geschickt. Schau in dein Postfach!
           </div>
         ) : (
-          <form action={formAction} className="space-y-4">
+          <form action={magicLinkAction} className="space-y-4">
             <div>
               <label
                 htmlFor="email"
@@ -71,17 +88,20 @@ export default function LoginPage() {
               />
             </div>
 
-            {state.error && (
-              <p className="text-sm text-destructive">{state.error}</p>
+            {magicLinkState.error && (
+              <p className="text-sm text-destructive">
+                {magicLinkState.error}
+              </p>
             )}
 
             <Button
               type="submit"
+              variant="outline"
               className="w-full"
               size="lg"
-              disabled={isPending}
+              disabled={magicLinkPending}
             >
-              {isPending ? 'Wird gesendet...' : 'Magic Link senden'}
+              {magicLinkPending ? 'Wird gesendet...' : 'Magic Link senden'}
             </Button>
           </form>
         )}

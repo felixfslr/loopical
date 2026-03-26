@@ -4,10 +4,10 @@ import { createServerClient } from '@supabase/ssr'
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
-  const redirectTo = url.searchParams.get('redirect') ?? '/dashboard'
+  const next = url.searchParams.get('next') ?? '/dashboard'
 
   if (code) {
-    const response = NextResponse.redirect(new URL(redirectTo, url.origin))
+    const response = NextResponse.redirect(new URL(next, url.origin))
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
