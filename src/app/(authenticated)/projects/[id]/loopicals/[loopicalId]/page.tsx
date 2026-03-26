@@ -1,9 +1,7 @@
 import { requireUser } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
-import { StatusSelector } from '@/components/status-selector'
-import { EditableAnnotation } from '@/components/editable-annotation'
-import { LoopicalFeedbackSection } from '@/components/loopical-feedback-section'
+import { LoopicalDetailView } from '@/components/loopical-detail-view'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import type { LoopicalStatus } from '@/lib/types/database'
@@ -27,20 +25,36 @@ export default async function LoopicalDetailPage({
     notFound()
   }
 
-  const { data: feedbackEntries } = await supabase
-    .from('feedback_entries')
-    .select(`
-      *,
-      profiles:author_id(full_name)
-    `)
-    .eq('loopical_id', loopicalId)
-    .order('created_at', { ascending: false })
-
-  const { data: project } = await supabase
-    .from('projects')
-    .select('name')
-    .eq('id', id)
-    .single()
+  const [
+    { data: feedbackEntries },
+    { data: project },
+    { data: feedbackPoints },
+    { data: loopicalMedia },
+  ] = await Promise.all([
+    supabase
+      .from('feedback_entries')
+      .select(`
+        *,
+        profiles:author_id(full_name)
+      `)
+      .eq('loopical_id', loopicalId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('projects')
+      .select('name')
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('feedback_points')
+      .select('*')
+      .eq('loopical_id', loopicalId)
+      .order('order_index', { ascending: true }),
+    supabase
+      .from('loopical_media')
+      .select('*')
+      .eq('loopical_id', loopicalId)
+      .order('order_index', { ascending: true }),
+  ])
 
   const entries = (feedbackEntries ?? []).map((entry) => ({
     ...entry,
@@ -52,6 +66,7 @@ export default async function LoopicalDetailPage({
     word_timestamps: entry.word_timestamps as any,
     action_items: entry.action_items as any,
     tags: entry.tags as any,
+    feedback_point_id: entry.feedback_point_id as string | null,
   }))
 
   return (
@@ -64,45 +79,37 @@ export default async function LoopicalDetailPage({
         Zurück zu {project?.name ?? 'Projekt'}
       </Link>
 
-      {/* Loopical Header */}
-      <div className="mb-8">
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {loopical.title}
-            </h1>
-            {loopical.description && (
-              <p className="text-sm text-muted-foreground mt-2">
-                {loopical.description}
-              </p>
-            )}
-          </div>
-          <StatusSelector
-            loopicalId={loopicalId}
-            projectId={id}
-            currentStatus={loopical.status as LoopicalStatus}
-          />
-        </div>
-
-        {/* Image */}
-        {loopical.media_url && (
-          <EditableAnnotation
-            src={loopical.media_url}
-            alt={loopical.title}
-            loopicalId={loopicalId}
-            projectId={id}
-            annotationX={loopical.annotation_x}
-            annotationY={loopical.annotation_y}
-          />
-        )}
-      </div>
-
-      {/* Feedback Section (Record + List with optimistic UI) */}
-      <LoopicalFeedbackSection
-        entries={entries}
+      <LoopicalDetailView
+        loopical={{
+          id: loopical.id,
+          title: loopical.title,
+          description: loopical.description,
+          status: loopical.status as LoopicalStatus,
+          feedback_mode: loopical.feedback_mode,
+          media_url: loopical.media_url,
+          ai_summary: (loopical as any).ai_summary ?? null,
+          ai_action_items: (loopical as any).ai_action_items ?? null,
+          ai_summary_updated_at: (loopical as any).ai_summary_updated_at ?? null,
+        }}
         projectId={id}
-        loopicalId={loopicalId}
         authorId={user.id}
+        entries={entries}
+        feedbackPoints={(feedbackPoints ?? []).map((p) => ({
+          id: p.id,
+          question_text: p.question_text,
+          question_audio_url: p.question_audio_url,
+          question_transcript: p.question_transcript,
+          marker_x: p.marker_x,
+          marker_y: p.marker_y,
+          marker_media_index: p.marker_media_index ?? 0,
+          order_index: p.order_index ?? 0,
+        }))}
+        mediaItems={(loopicalMedia ?? []).map((m) => ({
+          id: m.id,
+          media_url: m.media_url,
+          media_type: m.media_type,
+          order_index: m.order_index ?? 0,
+        }))}
       />
     </div>
   )

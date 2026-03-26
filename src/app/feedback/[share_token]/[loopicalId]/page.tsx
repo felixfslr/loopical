@@ -101,8 +101,8 @@ export default async function GuestLoopicalFeedbackPage({
         <ThemeToggle />
       </div>
 
-      {/* Document/Image panel */}
-      <div className="bg-muted/30 order-1 lg:order-2">
+      {/* Document/Image panel — sticky on desktop */}
+      <div className="bg-muted/30 order-1 lg:order-2 lg:sticky lg:top-0 lg:self-start lg:max-h-dvh lg:overflow-y-auto">
         {/* Title bar (desktop only) */}
         <div className="hidden lg:block p-6 border-b">
           <h1 className="text-lg font-bold tracking-tight">

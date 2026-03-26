@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnnotatedImage } from '@/components/annotated-image'
 import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
+import { VoiceRecorder } from '@/components/voice-recorder'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,10 +14,12 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Loader2,
   Mic,
   Play,
   Pause,
   SkipForward,
+  AlertCircle,
 } from 'lucide-react'
 
 interface FeedbackPoint {
@@ -35,6 +38,12 @@ interface MediaItem {
   media_url: string
   media_type: string
   order_index: number
+}
+
+interface Recording {
+  blob: Blob
+  duration: number
+  status: 'uploading' | 'submitted' | 'error'
 }
 
 interface GuidedFeedbackFlowProps {
@@ -58,7 +67,9 @@ export function GuidedFeedbackFlow({
   const [phase, setPhase] = useState<'intro' | 'guided' | 'open' | 'done'>('intro')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [guestName, setGuestName] = useState('')
-  const [completedPoints, setCompletedPoints] = useState<Set<string>>(new Set())
+  const [recordings, setRecordings] = useState<Map<string, Recording>>(new Map())
+  const guestNameRef = useRef(guestName)
+  guestNameRef.current = guestName
 
   const currentPoint = feedbackPoints[currentIndex]
   const totalPoints = feedbackPoints.length
@@ -83,10 +94,59 @@ export function GuidedFeedbackFlow({
       y: p.marker_y!,
     }))
 
-  function handlePointComplete() {
-    if (currentPoint) {
-      setCompletedPoints((prev) => new Set([...prev, currentPoint.id]))
-    }
+  const currentRecording = currentPoint ? recordings.get(currentPoint.id) : undefined
+  const hasRecording = !!currentRecording
+
+  // Upload recording in background
+  const uploadRecording = useCallback(
+    async (pointId: string, blob: Blob, duration: number) => {
+      setRecordings((prev) => {
+        const next = new Map(prev)
+        next.set(pointId, { blob, duration, status: 'uploading' })
+        return next
+      })
+
+      try {
+        const formData = new FormData()
+        formData.append('audio', blob, 'recording.webm')
+        formData.append('loopicalId', loopicalId)
+        formData.append('durationSeconds', String(duration))
+        formData.append('feedbackPointId', pointId)
+        if (guestNameRef.current) formData.append('guestName', guestNameRef.current)
+
+        const response = await fetch('/api/feedback', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) throw new Error('Upload failed')
+
+        setRecordings((prev) => {
+          const next = new Map(prev)
+          const existing = next.get(pointId)
+          if (existing) next.set(pointId, { ...existing, status: 'submitted' })
+          return next
+        })
+      } catch {
+        setRecordings((prev) => {
+          const next = new Map(prev)
+          const existing = next.get(pointId)
+          if (existing) next.set(pointId, { ...existing, status: 'error' })
+          return next
+        })
+      }
+    },
+    [loopicalId],
+  )
+
+  function handleRecordingComplete(blob: Blob, duration: number) {
+    if (!currentPoint) return
+    uploadRecording(currentPoint.id, blob, duration)
+  }
+
+  function handleRetryUpload() {
+    if (!currentPoint || !currentRecording) return
+    uploadRecording(currentPoint.id, currentRecording.blob, currentRecording.duration)
   }
 
   function goToNext() {
@@ -208,25 +268,28 @@ export function GuidedFeedbackFlow({
             style={{ width: `${((currentIndex + 1) / totalPoints) * 100}%` }}
           />
         </div>
-        {/* Progress dots */}
+        {/* Progress dots — color-coded by recording status */}
         <div className="hidden sm:flex gap-1">
-          {feedbackPoints.map((p, i) => (
-            <div
-              key={p.id}
-              className={`h-2 w-2 rounded-full transition-colors ${
-                completedPoints.has(p.id)
-                  ? 'bg-green-500'
-                  : i === currentIndex
-                    ? 'bg-primary'
-                    : 'bg-muted-foreground/30'
-              }`}
-            />
-          ))}
+          {feedbackPoints.map((p, i) => {
+            const rec = recordings.get(p.id)
+            let dotColor = 'bg-muted-foreground/30'
+            if (rec?.status === 'submitted') dotColor = 'bg-green-500'
+            else if (rec?.status === 'uploading') dotColor = 'bg-amber-400'
+            else if (rec?.status === 'error') dotColor = 'bg-red-500'
+            else if (rec) dotColor = 'bg-amber-400'
+            if (i === currentIndex && !rec) dotColor = 'bg-primary'
+            return (
+              <div
+                key={p.id}
+                className={`h-2 w-2 rounded-full transition-colors ${dotColor}`}
+              />
+            )
+          })}
         </div>
       </div>
 
-      {/* Image panel */}
-      <div className="bg-muted/30 order-1 lg:order-2 flex flex-col">
+      {/* Image panel — sticky on desktop, scrollable for tall images */}
+      <div className="bg-muted/30 order-1 lg:order-2 lg:sticky lg:top-0 lg:self-start lg:max-h-dvh lg:overflow-y-auto flex flex-col">
         <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
           {currentMedia ? (
             <AnnotatedImage
@@ -234,7 +297,6 @@ export function GuidedFeedbackFlow({
               alt={loopicalTitle}
               markers={markersForImage}
               activeMarkerId={currentPoint?.id}
-              className="max-h-[50vh] lg:max-h-[70vh]"
             />
           ) : (
             <div className="py-8 text-center">
@@ -269,14 +331,19 @@ export function GuidedFeedbackFlow({
               <QuestionDisplay point={currentPoint} index={currentIndex} />
             </div>
 
-            {/* Voice recorder */}
+            {/* Voice recorder or recording status */}
             <div className="flex-1 flex flex-col justify-center">
-              <FeedbackSubmitForm
-                loopicalId={loopicalId}
-                feedbackPointId={currentPoint?.id}
-                variant="standalone"
-                onSuccess={handlePointComplete}
-              />
+              {hasRecording ? (
+                <RecordingStatus
+                  recording={currentRecording!}
+                  onRetry={handleRetryUpload}
+                />
+              ) : (
+                <VoiceRecorder
+                  onSubmit={handleRecordingComplete}
+                  variant="standalone"
+                />
+              )}
             </div>
           </motion.div>
         </AnimatePresence>
@@ -292,14 +359,16 @@ export function GuidedFeedbackFlow({
             <ChevronLeft className="mr-1 h-4 w-4" />
             Zurück
           </Button>
-          <button
-            onClick={goToNext}
-            className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
-          >
-            <SkipForward className="h-3.5 w-3.5" />
-            {isLastPoint ? 'Abschließen' : 'Überspringen'}
-          </button>
-          {completedPoints.has(currentPoint?.id) && (
+          {!hasRecording && (
+            <button
+              onClick={goToNext}
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+            >
+              <SkipForward className="h-3.5 w-3.5" />
+              {isLastPoint ? 'Abschließen' : 'Überspringen'}
+            </button>
+          )}
+          {hasRecording && (
             <Button size="sm" onClick={goToNext}>
               {isLastPoint ? 'Abschließen' : 'Weiter'}
               <ChevronRight className="ml-1 h-4 w-4" />
@@ -312,6 +381,53 @@ export function GuidedFeedbackFlow({
 }
 
 // ---- Sub-components ----
+
+function RecordingStatus({
+  recording,
+  onRetry,
+}: {
+  recording: Recording
+  onRetry: () => void
+}) {
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-6">
+      {recording.status === 'uploading' && (
+        <>
+          <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          <p className="text-sm text-muted-foreground">
+            Wird hochgeladen… ({formatTime(recording.duration)})
+          </p>
+        </>
+      )}
+      {recording.status === 'submitted' && (
+        <>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
+            <Check className="h-6 w-6 text-green-500" />
+          </div>
+          <p className="text-sm font-medium">Aufnahme gesendet</p>
+          <p className="text-xs text-muted-foreground">{formatTime(recording.duration)}</p>
+        </>
+      )}
+      {recording.status === 'error' && (
+        <>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+            <AlertCircle className="h-6 w-6 text-destructive" />
+          </div>
+          <p className="text-sm text-destructive">Upload fehlgeschlagen</p>
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            Erneut versuchen
+          </Button>
+        </>
+      )}
+    </div>
+  )
+}
 
 function QuestionDisplay({
   point,
@@ -326,6 +442,7 @@ function QuestionDisplay({
   if (!point) return null
 
   const questionText = point.question_text || point.question_transcript || ''
+  const hasOnlyAudio = !questionText && point.question_audio_url
 
   function togglePlayback() {
     if (!audioEl) return
@@ -350,6 +467,11 @@ function QuestionDisplay({
       {questionText && (
         <p className="text-lg font-medium">{questionText}</p>
       )}
+      {hasOnlyAudio && (
+        <p className="text-lg font-medium text-muted-foreground">
+          Höre dir an, was hierzu gewünscht wird
+        </p>
+      )}
       {point.question_audio_url && (
         <div className="flex items-center gap-2">
           <audio
@@ -363,7 +485,7 @@ function QuestionDisplay({
             ) : (
               <Play className="mr-1.5 h-3 w-3" />
             )}
-            Frage anhören
+            Hinweis anhören
           </Button>
           <Mic className="h-3.5 w-3.5 text-muted-foreground" />
         </div>

@@ -15,6 +15,8 @@ import {
   ChevronRight,
   MapPin,
   MessageCircleQuestion,
+  Sparkles,
+  Loader2,
 } from 'lucide-react'
 import type { MediaItem } from './wizard-step-media'
 
@@ -31,6 +33,7 @@ export interface FeedbackPointDraft {
 }
 
 interface WizardStepPointsProps {
+  title: string
   media: MediaItem[]
   points: FeedbackPointDraft[]
   onPointsChange: (points: FeedbackPointDraft[]) => void
@@ -40,6 +43,7 @@ interface WizardStepPointsProps {
 }
 
 export function WizardStepPoints({
+  title,
   media,
   points,
   onPointsChange,
@@ -49,6 +53,7 @@ export function WizardStepPoints({
 }: WizardStepPointsProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
   const [activePointId, setActivePointId] = useState<string | null>(null)
+  const [isSuggesting, setIsSuggesting] = useState(false)
 
   const currentMedia = media[currentMediaIndex]
   const markersForCurrentImage = points
@@ -97,6 +102,33 @@ export function WizardStepPoints({
     updatePoint(pointId, { isUploading: false })
   }
 
+  async function handleSuggestQuestions() {
+    setIsSuggesting(true)
+    try {
+      const res = await fetch('/api/suggest-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, mediaCount: media.length }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      const data = await res.json()
+      const newPoints: FeedbackPointDraft[] = (data.questions ?? []).map(
+        (q: { text: string }) => ({
+          id: crypto.randomUUID(),
+          questionText: q.text,
+          markerX: null,
+          markerY: null,
+          markerMediaIndex: 0,
+        }),
+      )
+      onPointsChange([...points, ...newPoints])
+    } catch (err) {
+      console.error('AI suggestions failed:', err)
+    } finally {
+      setIsSuggesting(false)
+    }
+  }
+
   const globalPointIndex = (pointId: string) =>
     points.findIndex((p) => p.id === pointId)
 
@@ -105,7 +137,7 @@ export function WizardStepPoints({
       <div>
         <h2 className="text-xl font-semibold mb-1">Definiere deine Feedback-Punkte</h2>
         <p className="text-sm text-muted-foreground">
-          Klicke auf das Bild, um Marker zu setzen, oder füge Fragen ohne Bild-Bezug hinzu.
+          Klicke auf das Bild, um Marker zu setzen, oder füge Punkte ohne Bild-Bezug hinzu.
         </p>
       </div>
 
@@ -127,7 +159,7 @@ export function WizardStepPoints({
             <div className="rounded-lg border-2 border-dashed p-12 text-center">
               <MapPin className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
               <p className="text-sm text-muted-foreground">
-                Keine Bilder hochgeladen — du kannst trotzdem Fragen ohne Marker erstellen.
+                Keine Bilder hochgeladen — du kannst trotzdem Punkte ohne Marker erstellen.
               </p>
             </div>
           ) : (
@@ -177,14 +209,29 @@ export function WizardStepPoints({
 
         {/* Right: Points list */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-medium">
               Feedback-Punkte ({points.length})
             </h3>
-            <Button variant="outline" size="sm" onClick={() => addPoint()}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Punkt hinzufügen
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSuggestQuestions}
+                disabled={isSuggesting || !title}
+              >
+                {isSuggesting ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                KI-Vorschläge
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => addPoint()}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Punkt hinzufügen
+              </Button>
+            </div>
           </div>
 
           {points.length === 0 ? (
@@ -227,7 +274,7 @@ export function WizardStepPoints({
                             onChange={(e) =>
                               updatePoint(point.id, { questionText: e.target.value })
                             }
-                            placeholder="Deine Frage..."
+                            placeholder="Was möchtest du hierzu wissen?"
                             className="h-8 text-sm"
                             onClick={(e) => e.stopPropagation()}
                           />
@@ -262,7 +309,7 @@ export function WizardStepPoints({
                             <span>Marker auf Bild {point.markerMediaIndex + 1}</span>
                           </>
                         ) : (
-                          <span className="italic">Kein Marker — allgemeine Frage</span>
+                          <span className="italic">Kein Marker — allgemeiner Punkt</span>
                         )}
                       </div>
                     </motion.div>

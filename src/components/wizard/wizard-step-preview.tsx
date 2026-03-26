@@ -1,11 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { AnnotatedImage } from '@/components/annotated-image'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Loader2, MapPin, Mic, MessageCircleQuestion } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, MapPin, Mic, MessageCircleQuestion, Sparkles } from 'lucide-react'
 import type { MediaItem } from './wizard-step-media'
 import type { FeedbackPointDraft } from './wizard-step-points'
 import type { FeedbackMode } from '@/lib/types/database'
@@ -33,9 +34,12 @@ export function WizardStepPreview({
   onSubmit,
   isSubmitting,
 }: WizardStepPreviewProps) {
-  const firstImage = media.find((m) => m.preview)
-  const markersForFirstImage = points
-    .filter((p) => p.markerX != null && p.markerY != null && p.markerMediaIndex === 0)
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
+  const [isGeneratingWelcome, setIsGeneratingWelcome] = useState(false)
+
+  const currentImage = media[currentMediaIndex]
+  const markersForCurrentImage = points
+    .filter((p) => p.markerX != null && p.markerY != null && p.markerMediaIndex === currentMediaIndex)
     .map((p) => ({
       id: p.id,
       label: p.questionText || 'Punkt',
@@ -61,19 +65,50 @@ export function WizardStepPreview({
           </Badge>
         </div>
 
-        {firstImage?.preview && (
-          <AnnotatedImage
-            src={firstImage.preview}
-            alt={title}
-            markers={mode === 'guided' ? markersForFirstImage : []}
-            className="border rounded-lg"
-          />
-        )}
+        {/* Image carousel */}
+        {currentImage?.preview && (
+          <div>
+            <AnnotatedImage
+              src={currentImage.preview}
+              alt={title}
+              markers={mode === 'guided' ? markersForCurrentImage : []}
+              className="border rounded-lg"
+            />
 
-        {media.length > 1 && (
-          <p className="text-xs text-muted-foreground">
-            + {media.length - 1} weitere{media.length - 1 === 1 ? 's' : ''} Bild{media.length - 1 === 1 ? '' : 'er'}
-          </p>
+            {media.length > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setCurrentMediaIndex((i) => Math.max(0, i - 1))}
+                  disabled={currentMediaIndex === 0}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex gap-1.5">
+                  {media.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentMediaIndex(i)}
+                      className={`h-2 w-2 rounded-full transition-colors ${
+                        i === currentMediaIndex ? 'bg-primary' : 'bg-muted-foreground/30'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setCurrentMediaIndex((i) => Math.min(media.length - 1, i + 1))}
+                  disabled={currentMediaIndex === media.length - 1}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
         )}
 
         {mode === 'guided' && points.length > 0 && (
@@ -86,7 +121,7 @@ export function WizardStepPreview({
                     {i + 1}
                   </div>
                   <span className="flex-1">
-                    {point.questionText || <span className="italic text-muted-foreground">Keine Frage</span>}
+                    {point.questionText || <span className="italic text-muted-foreground">Kein Text</span>}
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {point.markerX != null && (
@@ -112,7 +147,42 @@ export function WizardStepPreview({
 
       {/* Welcome message */}
       <div className="space-y-2">
-        <Label htmlFor="welcome-msg">Begrüßung für Feedback-Geber (optional)</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="welcome-msg">Begrüßung für Feedback-Geber (optional)</Label>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={async () => {
+              setIsGeneratingWelcome(true)
+              try {
+                const res = await fetch('/api/generate-welcome', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    title,
+                    points: points.map((p) => p.questionText).filter(Boolean),
+                  }),
+                })
+                if (!res.ok) throw new Error('Failed')
+                const data = await res.json()
+                if (data.message) onWelcomeMessageChange(data.message)
+              } catch {
+                // silently fail
+              } finally {
+                setIsGeneratingWelcome(false)
+              }
+            }}
+            disabled={isGeneratingWelcome}
+          >
+            {isGeneratingWelcome ? (
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+            ) : (
+              <Sparkles className="mr-1 h-3 w-3" />
+            )}
+            Mit KI generieren
+          </Button>
+        </div>
         <Textarea
           id="welcome-msg"
           value={welcomeMessage}

@@ -188,6 +188,7 @@ export function LoopicalWizard({ projectId }: LoopicalWizardProps) {
 
       {state.step === 3 && (
         <WizardStepPoints
+          title={state.title}
           media={state.media}
           points={state.feedbackPoints}
           onPointsChange={(p) => dispatch({ type: 'SET_POINTS', points: p })}

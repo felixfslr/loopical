@@ -155,6 +155,9 @@ export interface Database {
           annotation_y: number | null
           feedback_mode: FeedbackMode
           welcome_message: string | null
+          ai_summary: string | null
+          ai_action_items: Json | null
+          ai_summary_updated_at: string | null
         }
         Insert: {
           id?: string
@@ -171,6 +174,9 @@ export interface Database {
           annotation_y?: number | null
           feedback_mode?: FeedbackMode
           welcome_message?: string | null
+          ai_summary?: string | null
+          ai_action_items?: Json | null
+          ai_summary_updated_at?: string | null
         }
         Update: {
           id?: string
@@ -187,6 +193,9 @@ export interface Database {
           annotation_y?: number | null
           feedback_mode?: FeedbackMode
           welcome_message?: string | null
+          ai_summary?: string | null
+          ai_action_items?: Json | null
+          ai_summary_updated_at?: string | null
         }
         Relationships: [
           {
