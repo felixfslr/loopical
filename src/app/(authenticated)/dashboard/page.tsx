@@ -1,5 +1,5 @@
 import { requireUser } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { ProjectCard } from '@/components/project-card'
 import { EmptyState } from '@/components/empty-state'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,7 @@ import Link from 'next/link'
 
 export default async function DashboardPage() {
   const user = await requireUser()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: projects } = await supabase
     .from('projects')

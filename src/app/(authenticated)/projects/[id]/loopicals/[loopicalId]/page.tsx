@@ -1,5 +1,5 @@
 import { requireUser } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import { FeedbackDetail } from '@/components/feedback-detail'
 import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
@@ -17,7 +17,7 @@ export default async function LoopicalDetailPage({
 }) {
   const { id, loopicalId } = await params
   const user = await requireUser()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: loopical } = await supabase
     .from('loopicals')

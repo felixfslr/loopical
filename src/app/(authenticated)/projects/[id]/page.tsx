@@ -1,5 +1,5 @@
 import { requireUser } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import { LoopicalCard } from '@/components/loopical-card'
 import { EmptyState } from '@/components/empty-state'
@@ -16,7 +16,7 @@ export default async function ProjectDetailPage({
 }) {
   const { id } = await params
   const user = await requireUser()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: project } = await supabase
     .from('projects')

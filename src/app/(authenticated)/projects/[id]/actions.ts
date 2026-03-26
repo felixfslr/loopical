@@ -1,7 +1,6 @@
 'use server'
 
 import { requireUser } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
@@ -10,7 +9,7 @@ export async function createLoopical(
   formData: FormData,
 ) {
   const user = await requireUser()
-  const supabase = await createClient()
+  const admin = createAdminClient()
 
   const projectId = formData.get('projectId') as string
   const title = formData.get('title') as string
@@ -28,22 +27,23 @@ export async function createLoopical(
     const ext = mediaFile.name.split('.').pop()
     const path = `${projectId}/${crypto.randomUUID()}.${ext}`
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await admin.storage
       .from('media')
       .upload(path, mediaFile)
 
     if (uploadError) {
+      console.error('Upload error:', uploadError)
       return { error: 'Bild konnte nicht hochgeladen werden.', success: false }
     }
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from('media').getPublicUrl(path)
+    } = admin.storage.from('media').getPublicUrl(path)
     mediaUrl = publicUrl
   }
 
   // Get max order_index
-  const { data: maxOrder } = await supabase
+  const { data: maxOrder } = await admin
     .from('loopicals')
     .select('order_index')
     .eq('project_id', projectId)
@@ -53,7 +53,7 @@ export async function createLoopical(
 
   const orderIndex = (maxOrder?.order_index ?? -1) + 1
 
-  const { error } = await supabase.from('loopicals').insert({
+  const { error } = await admin.from('loopicals').insert({
     project_id: projectId,
     title: title.trim(),
     description,
@@ -65,7 +65,7 @@ export async function createLoopical(
 
   if (error) {
     console.error('Create loopical error:', error)
-    return { error: `Fehler: ${error.message} (${error.code})`, success: false }
+    return { error: `Fehler: ${error.message}`, success: false }
   }
 
   revalidatePath(`/projects/${projectId}`)
@@ -74,9 +74,9 @@ export async function createLoopical(
 
 export async function deleteProject(projectId: string) {
   const user = await requireUser()
-  const supabase = await createClient()
+  const admin = createAdminClient()
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('projects')
     .delete()
     .eq('id', projectId)
@@ -95,7 +95,7 @@ export async function updateProject(
   formData: FormData,
 ) {
   const user = await requireUser()
-  const supabase = await createClient()
+  const admin = createAdminClient()
 
   const projectId = formData.get('projectId') as string
   const name = formData.get('name') as string
@@ -105,7 +105,7 @@ export async function updateProject(
     return { error: 'Bitte gib einen Projektnamen ein.', success: false }
   }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('projects')
     .update({ name: name.trim(), description })
     .eq('id', projectId)

@@ -1,10 +1,10 @@
 import { requireUser } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { SettingsForm } from '@/components/settings-form'
 
 export default async function SettingsPage() {
   const user = await requireUser()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: profile } = await supabase
     .from('profiles')

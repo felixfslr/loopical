@@ -1,5 +1,5 @@
 import { requireUser } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { AppSidebar } from '@/components/app-sidebar'
 
 export default async function AuthenticatedLayout({
@@ -8,7 +8,7 @@ export default async function AuthenticatedLayout({
   children: React.ReactNode
 }) {
   const user = await requireUser()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: profile } = await supabase
     .from('profiles')

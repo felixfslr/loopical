@@ -1,7 +1,7 @@
 'use server'
 
 import { requireUser } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { nanoid } from 'nanoid'
 
 export async function createProject(
@@ -17,11 +17,7 @@ export async function createProject(
     return { error: 'Bitte gib einen Projektnamen ein.', projectId: null }
   }
 
-  const supabase = await createClient()
-
-  // Debug: check if user session is available to supabase client
-  const { data: sessionData } = await supabase.auth.getUser()
-  console.log('Server action user:', sessionData.user?.id, 'Expected:', user.id)
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('projects')
@@ -37,7 +33,7 @@ export async function createProject(
 
   if (error) {
     console.error('Create project error:', error)
-    return { error: `Fehler: ${error.message} (${error.code})`, projectId: null }
+    return { error: `Fehler: ${error.message}`, projectId: null }
   }
 
   return { error: null, projectId: data.id }

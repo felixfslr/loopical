@@ -1,7 +1,7 @@
 'use server'
 
 import { requireUser } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import type { LoopicalStatus } from '@/lib/types/database'
 
@@ -11,9 +11,9 @@ export async function updateLoopicalStatus(
   status: LoopicalStatus,
 ) {
   await requireUser()
-  const supabase = await createClient()
+  const admin = createAdminClient()
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('loopicals')
     .update({ status })
     .eq('id', loopicalId)
@@ -28,9 +28,9 @@ export async function updateLoopicalStatus(
 
 export async function deleteLoopical(loopicalId: string, projectId: string) {
   await requireUser()
-  const supabase = await createClient()
+  const admin = createAdminClient()
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('loopicals')
     .delete()
     .eq('id', loopicalId)
@@ -50,10 +50,9 @@ export async function toggleActionItem(
   loopicalId: string,
 ) {
   await requireUser()
-  const supabase = await createClient()
+  const admin = createAdminClient()
 
-  // Fetch current action items
-  const { data: entry } = await supabase
+  const { data: entry } = await admin
     .from('feedback_entries')
     .select('action_items')
     .eq('id', entryId)
@@ -66,7 +65,7 @@ export async function toggleActionItem(
 
   items[itemIndex].done = !items[itemIndex].done
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('feedback_entries')
     .update({ action_items: items })
     .eq('id', entryId)
@@ -82,7 +81,7 @@ export async function addComment(
   formData: FormData,
 ) {
   const user = await requireUser()
-  const supabase = await createClient()
+  const admin = createAdminClient()
 
   const feedbackEntryId = formData.get('feedbackEntryId') as string
   const text = formData.get('text') as string
@@ -93,7 +92,7 @@ export async function addComment(
     return { error: 'Bitte gib einen Kommentar ein.', success: false }
   }
 
-  const { error } = await supabase.from('comments').insert({
+  const { error } = await admin.from('comments').insert({
     feedback_entry_id: feedbackEntryId,
     author_id: user.id,
     text: text.trim(),
