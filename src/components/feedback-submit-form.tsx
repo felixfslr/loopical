@@ -1,16 +1,28 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
 import { VoiceRecorder } from '@/components/voice-recorder'
+import { ProcessingStatusWrapper } from '@/components/processing-status'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Check } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Check, AlertCircle } from 'lucide-react'
+
+const fadeSlide = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -12 },
+  transition: { duration: 0.3 },
+}
 
 interface FeedbackSubmitFormProps {
   loopicalId: string
   authorId?: string
   showGuestName?: boolean
   variant?: 'card' | 'standalone'
+  onNewEntry?: (entryId: string) => void
   onSuccess?: () => void
 }
 
@@ -19,14 +31,19 @@ export function FeedbackSubmitForm({
   authorId,
   showGuestName = false,
   variant = 'card',
+  onNewEntry,
   onSuccess,
 }: FeedbackSubmitFormProps) {
+  const router = useRouter()
   const [guestName, setGuestName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [entryId, setEntryId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(blob: Blob, durationSeconds: number) {
     setIsSubmitting(true)
+    setError(null)
 
     try {
       const formData = new FormData()
@@ -45,48 +62,89 @@ export function FeedbackSubmitForm({
         throw new Error('Upload fehlgeschlagen')
       }
 
+      const data = await response.json()
+      setEntryId(data.id)
       setSubmitted(true)
+      onNewEntry?.(data.id)
       onSuccess?.()
     } catch (err) {
       console.error('Submit error:', err)
-      alert('Feedback konnte nicht gesendet werden. Bitte versuche es erneut.')
+      setError('Feedback konnte nicht gesendet werden.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  if (submitted) {
-    return (
-      <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-6 text-center">
-        <Check className="mx-auto h-8 w-8 text-green-500 mb-3" />
-        <p className="font-medium">Danke für dein Feedback!</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Dein Voice-Feedback wird gerade verarbeitet.
-        </p>
-        <button
-          onClick={() => setSubmitted(false)}
-          className="mt-4 text-sm text-muted-foreground underline hover:text-foreground"
-        >
-          Weiteres Feedback aufnehmen
-        </button>
-      </div>
-    )
+  function handleReset() {
+    setSubmitted(false)
+    setEntryId(null)
+    setError(null)
+  }
+
+  function handleProcessingComplete() {
+    router.refresh()
   }
 
   return (
     <div className="space-y-4">
-      {showGuestName && (
-        <div className="space-y-2">
-          <Label htmlFor="guestName">Dein Name (optional)</Label>
-          <Input
-            id="guestName"
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
-            placeholder="Wie heißt du?"
-          />
-        </div>
-      )}
-      <VoiceRecorder onSubmit={handleSubmit} isSubmitting={isSubmitting} variant={variant} />
+      {/* Error Banner */}
+      <AnimatePresence>
+        {error && (
+          <motion.div {...fadeSlide}>
+            <div className="rounded-md bg-destructive/10 p-3 flex items-center gap-3">
+              <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+              <span className="text-sm text-destructive flex-1">{error}</span>
+              <Button variant="outline" size="sm" onClick={() => setError(null)}>
+                Schließen
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence mode="wait">
+        {submitted && entryId ? (
+          /* Processing → Complete */
+          <motion.div key="processing" {...fadeSlide}>
+            <ProcessingStatusWrapper
+              entryId={entryId}
+              initialStatus="pending"
+              onComplete={handleProcessingComplete}
+            >
+              {/* Shown when complete */}
+              <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-6 text-center">
+                <Check className="mx-auto h-8 w-8 text-green-500 mb-3" />
+                <p className="font-medium">Danke für dein Feedback!</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Dein Voice-Feedback wurde verarbeitet.
+                </p>
+                <button
+                  onClick={handleReset}
+                  className="mt-4 text-sm text-muted-foreground underline hover:text-foreground"
+                >
+                  Weiteres Feedback aufnehmen
+                </button>
+              </div>
+            </ProcessingStatusWrapper>
+          </motion.div>
+        ) : (
+          /* Recording */
+          <motion.div key="recorder" {...fadeSlide}>
+            {showGuestName && (
+              <div className="space-y-2 mb-4">
+                <Label htmlFor="guestName">Dein Name (optional)</Label>
+                <Input
+                  id="guestName"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="Wie heißt du?"
+                />
+              </div>
+            )}
+            <VoiceRecorder onSubmit={handleSubmit} isSubmitting={isSubmitting} variant={variant} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -31,9 +31,10 @@ interface FeedbackDetailProps {
     created_at: string
   }
   onToggleActionItem?: (entryId: string, index: number) => void
+  onComplete?: () => void
 }
 
-export function FeedbackDetail({ entry, onToggleActionItem }: FeedbackDetailProps) {
+export function FeedbackDetail({ entry, onToggleActionItem, onComplete }: FeedbackDetailProps) {
   const [currentTime, setCurrentTime] = useState(0)
   const authorName = entry.guest_name || entry.author_name || 'Anonym'
   const date = new Date(entry.created_at)
@@ -83,6 +84,7 @@ export function FeedbackDetail({ entry, onToggleActionItem }: FeedbackDetailProp
       <ProcessingStatusWrapper
         entryId={entry.id}
         initialStatus={entry.processing_status}
+        onComplete={onComplete}
       >
         <div className="space-y-4">
           {/* Transcript */}

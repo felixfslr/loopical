@@ -3,9 +3,14 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { ProcessingStatus } from '@/lib/types/database'
 
+interface UseRealtimeStatusOptions {
+  onComplete?: () => void
+}
+
 export function useRealtimeStatus(
   entryId: string,
   initialStatus: ProcessingStatus,
+  options?: UseRealtimeStatusOptions,
 ) {
   const [status, setStatus] = useState<ProcessingStatus>(initialStatus)
 
@@ -28,20 +33,18 @@ export function useRealtimeStatus(
   useEffect(() => {
     if (initialStatus === 'complete' || initialStatus === 'error') return
 
-    // Poll every 2 seconds until complete or error
     const interval = setInterval(async () => {
       const newStatus = await poll()
       if (newStatus === 'complete' || newStatus === 'error') {
         clearInterval(interval)
-        // Reload page to show full results
         if (newStatus === 'complete') {
-          window.location.reload()
+          options?.onComplete?.()
         }
       }
     }, 2000)
 
     return () => clearInterval(interval)
-  }, [entryId, initialStatus, poll])
+  }, [entryId, initialStatus, poll, options])
 
   return status
 }

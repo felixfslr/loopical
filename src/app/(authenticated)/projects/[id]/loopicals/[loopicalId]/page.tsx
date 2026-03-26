@@ -1,15 +1,12 @@
 import { requireUser } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
-import { FeedbackDetail } from '@/components/feedback-detail'
-import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
 import { StatusSelector } from '@/components/status-selector'
-import { EmptyState } from '@/components/empty-state'
 import { EditableAnnotation } from '@/components/editable-annotation'
+import { LoopicalFeedbackSection } from '@/components/loopical-feedback-section'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import type { LoopicalStatus } from '@/lib/types/database'
-import { LoopicalFeedbackList } from '@/components/loopical-feedback-list'
 
 export default async function LoopicalDetailPage({
   params,
@@ -87,44 +84,26 @@ export default async function LoopicalDetailPage({
           />
         </div>
 
-        {/* Splitscreen: Image + Recorder */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {loopical.media_url && (
-            <EditableAnnotation
-              src={loopical.media_url}
-              alt={loopical.title}
-              loopicalId={loopicalId}
-              projectId={id}
-              annotationX={loopical.annotation_x}
-              annotationY={loopical.annotation_y}
-            />
-          )}
-          <div>
-            <h2 className="text-lg font-semibold mb-4">Feedback aufnehmen</h2>
-            <FeedbackSubmitForm loopicalId={loopicalId} authorId={user.id} />
-          </div>
-        </div>
-      </div>
-
-      {/* Feedback Entries */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">
-          Feedback ({entries.length})
-        </h2>
-
-        {entries.length === 0 ? (
-          <EmptyState
-            title="Noch kein Feedback"
-            description="Nimm das erste Voice-Feedback auf oder teile den Link mit deinem Team."
-          />
-        ) : (
-          <LoopicalFeedbackList
-            entries={entries}
-            projectId={id}
+        {/* Image */}
+        {loopical.media_url && (
+          <EditableAnnotation
+            src={loopical.media_url}
+            alt={loopical.title}
             loopicalId={loopicalId}
+            projectId={id}
+            annotationX={loopical.annotation_x}
+            annotationY={loopical.annotation_y}
           />
         )}
       </div>
+
+      {/* Feedback Section (Record + List with optimistic UI) */}
+      <LoopicalFeedbackSection
+        entries={entries}
+        projectId={id}
+        loopicalId={loopicalId}
+        authorId={user.id}
+      />
     </div>
   )
 }
