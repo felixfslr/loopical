@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -71,6 +71,18 @@ export function WizardStepMedia({
     dragOverItem.current = null
   }
 
+  useEffect(() => {
+    function handlePaste(e: ClipboardEvent) {
+      const files = Array.from(e.clipboardData?.files ?? [])
+      if (files.length > 0) {
+        e.preventDefault()
+        handleFiles(files)
+      }
+    }
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  })
+
   const isValid = title.trim().length > 0
 
   return (
@@ -120,7 +132,7 @@ export function WizardStepMedia({
         >
           <Upload className="mx-auto h-6 w-6 text-muted-foreground/50 mb-2" />
           <p className="text-sm text-muted-foreground">
-            Bilder hierher ziehen oder klicken
+            Bilder hierher ziehen, klicken oder einfügen (Strg+V)
           </p>
         </div>
       </div>
