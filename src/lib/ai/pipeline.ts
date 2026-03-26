@@ -77,5 +77,6 @@ export async function processFeedbackEntry(entryId: string) {
   } catch (err) {
     console.error('AI pipeline error for entry', entryId, ':', err)
     await updateStatus(entryId, 'error')
+    throw err // Re-throw so callers (retry endpoint) can see the error
   }
 }

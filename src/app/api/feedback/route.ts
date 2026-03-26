@@ -24,11 +24,17 @@ export async function POST(request: Request) {
 
     const admin = createAdminClient()
 
+    // Convert File to ArrayBuffer for reliable binary upload
+    const audioBuffer = await audio.arrayBuffer()
+
     // Upload audio to storage
     const path = `${loopicalId}/${crypto.randomUUID()}.webm`
     const { error: uploadError } = await admin.storage
       .from('audio')
-      .upload(path, audio, { contentType: 'audio/webm' })
+      .upload(path, audioBuffer, {
+        contentType: 'audio/webm',
+        duplex: 'half',
+      } as any)
 
     if (uploadError) {
       console.error('Upload error:', uploadError)

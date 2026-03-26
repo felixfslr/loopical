@@ -8,7 +8,9 @@ export async function transcribeAudio(
   if (!audioResponse.ok) {
     throw new Error(`Failed to download audio: ${audioResponse.status}`)
   }
-  const audioBlob = await audioResponse.blob()
+
+  const audioBuffer = await audioResponse.arrayBuffer()
+  const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' })
 
   // Send to ElevenLabs Scribe v2
   const formData = new FormData()
