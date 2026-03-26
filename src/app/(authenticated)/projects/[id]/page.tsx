@@ -5,7 +5,6 @@ import { LoopicalCard } from '@/components/loopical-card'
 import { EmptyState } from '@/components/empty-state'
 import { ShareDialog } from '@/components/share-dialog'
 import { DropZoneUploader } from '@/components/drop-zone-uploader'
-import { buttonVariants } from '@/components/ui/button'
 import { ArrowLeft, Plus } from 'lucide-react'
 import Link from 'next/link'
 
@@ -68,7 +67,10 @@ export default async function ProjectDetailPage({
             projectName={project.name}
             loopicalCount={loopicals?.length ?? 0}
           />
-          <Link href={`/projects/${id}/loopicals/new`} className={buttonVariants()}>
+          <Link
+            href={`/projects/${id}/loopicals/new`}
+            className="group/button inline-flex shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-medium h-8 gap-1.5 px-2.5 transition-all outline-none select-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Neues Loopical
           </Link>
