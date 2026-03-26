@@ -12,7 +12,7 @@ export interface TranscriptionResult {
 
 export interface AnalysisResult {
   summary: string
-  actionItems: { text: string; done: boolean }[]
+  actionItems: { text: string; done: boolean; priority?: 'high' | 'medium' | 'low' }[]
   sentiment: 'positive' | 'neutral' | 'critical'
   tags: string[]
 }

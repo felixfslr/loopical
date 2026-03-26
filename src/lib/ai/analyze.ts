@@ -18,39 +18,43 @@ export async function analyzeTranscript(
           {
             role: 'system',
             content:
-              'Du bist ein Feedback-Analyst. Du analysierst Voice-Feedback und gibst strukturierte Ergebnisse als JSON zurück. Antworte ausschließlich mit validem JSON — kein Markdown, kein Codeblock, kein zusätzlicher Text.',
+              'Du bist ein erfahrener Feedback-Analyst. Du analysierst Voice-Feedback und gibst strukturierte Ergebnisse als JSON zurück. Antworte ausschließlich mit validem JSON — kein Markdown, kein Codeblock, kein zusätzlicher Text.',
           },
           {
             role: 'user',
             content: `Analysiere folgendes Voice-Feedback zu einem Projekt-Element.
 
 Kontext des Feedback-Punkts: "${context.title}"
-Beschreibung: "${context.description || 'Keine Beschreibung'}"
+${context.description ? `Beschreibung / Frage: "${context.description}"` : ''}
 
 Transkript des Voice-Feedbacks:
-"${transcript}"
+"""
+${transcript}
+"""
 
 Antworte ausschließlich in folgendem JSON-Format:
 {
-  "summary": "2-3 Sätze Zusammenfassung des Feedbacks",
+  "summary": "Zusammenfassung des Feedbacks — Länge proportional zum Input: kurzes Feedback = 2-3 Sätze, langes Feedback = ausführlicher Absatz mit allen wichtigen Punkten",
   "action_items": [
-    {"text": "Konkrete Aufgabe 1", "done": false},
-    {"text": "Konkrete Aufgabe 2", "done": false}
+    {"text": "Konkrete, umsetzbare Aufgabe", "priority": "high", "done": false}
   ],
   "sentiment": "positive" | "neutral" | "critical",
-  "tags": ["design", "ux", "copy", "bug", "feature_request", "general"]
+  "tags": ["design", "ux", "copy", "bug", "feature_request", "performance", "accessibility", "content", "general"]
 }
 
 Regeln:
 - Summary in der gleichen Sprache wie das Transkript
-- Action Items sind konkret und umsetzbar, nicht vage
+- Bei langem Feedback (>1 Minute): ausführlichere Summary, die alle wesentlichen Punkte abdeckt
+- Action Items sind konkret und umsetzbar, nicht vage ("Button-Farbe ändern" statt "Design verbessern")
+- Priority: "high" = muss gemacht werden, "medium" = sollte gemacht werden, "low" = nice-to-have
 - Wenn kein klarer Action Item ableitbar ist, leeres Array
-- Tags nur aus der vorgegebenen Liste wählen, können mehrere sein
-- Sentiment basiert auf Tonfall und Inhalt`,
+- Tags aus der vorgegebenen Liste wählen, können mehrere sein
+- Sentiment basiert auf Tonfall und Inhalt
+${context.description ? '- Das Feedback bezieht sich auf die oben genannte Frage/Beschreibung — beziehe deine Analyse darauf' : ''}`,
           },
         ],
         temperature: 0.3,
-        max_tokens: 1024,
+        max_tokens: 65536,
       }),
     },
   )
@@ -91,6 +95,7 @@ function parseAIResponse(raw: string): AnalysisResult {
         ? parsed.action_items.map((item: any) => ({
             text: typeof item.text === 'string' ? item.text : String(item),
             done: Boolean(item.done),
+            priority: ['high', 'medium', 'low'].includes(item.priority) ? item.priority : 'medium',
           }))
         : [],
       sentiment: ['positive', 'neutral', 'critical'].includes(parsed.sentiment)

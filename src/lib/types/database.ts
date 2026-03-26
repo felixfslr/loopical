@@ -32,6 +32,7 @@ export interface WordTimestamp {
 export interface ActionItem {
   text: string
   done: boolean
+  priority?: 'high' | 'medium' | 'low'
 }
 
 export interface Database {
