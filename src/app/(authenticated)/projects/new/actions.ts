@@ -19,6 +19,10 @@ export async function createProject(
 
   const supabase = await createClient()
 
+  // Debug: check if user session is available to supabase client
+  const { data: sessionData } = await supabase.auth.getUser()
+  console.log('Server action user:', sessionData.user?.id, 'Expected:', user.id)
+
   const { data, error } = await supabase
     .from('projects')
     .insert({
