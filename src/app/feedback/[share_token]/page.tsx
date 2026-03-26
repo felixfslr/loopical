@@ -2,9 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
-import { StatusBadge } from '@/components/status-badge'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { MessageSquare, Mic } from 'lucide-react'
-import type { LoopicalStatus } from '@/lib/types/database'
 
 export default async function GuestFeedbackPage({
   params,
@@ -30,7 +29,10 @@ export default async function GuestFeedbackPage({
   })
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
       <div className="mx-auto max-w-2xl px-4 py-8 sm:py-16">
         {/* Header */}
         <div className="text-center mb-10">

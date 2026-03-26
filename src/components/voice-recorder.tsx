@@ -10,9 +10,10 @@ import { Mic, Square, Play, Pause, RotateCcw, Send } from 'lucide-react'
 interface VoiceRecorderProps {
   onSubmit: (blob: Blob, durationSeconds: number) => void
   isSubmitting?: boolean
+  variant?: 'card' | 'standalone'
 }
 
-export function VoiceRecorder({ onSubmit, isSubmitting }: VoiceRecorderProps) {
+export function VoiceRecorder({ onSubmit, isSubmitting, variant = 'card' }: VoiceRecorderProps) {
   const {
     isRecording,
     duration,
@@ -109,30 +110,38 @@ export function VoiceRecorder({ onSubmit, isSubmitting }: VoiceRecorderProps) {
   }
 
   // Recording / Idle state — splitscreen with SiriOrb
+  const isStandalone = variant === 'standalone'
+
+  const orbSize = isStandalone
+    ? (isRecording ? '280px' : '240px')
+    : (isRecording ? '160px' : '120px')
+
   return (
-    <div className="rounded-lg border p-6">
-      <div className="flex flex-col md:flex-row items-center gap-6">
-        {/* SiriOrb — left side */}
+    <div className={isStandalone ? '' : 'rounded-lg border p-6'}>
+      <div className={isStandalone
+        ? 'flex flex-col items-center gap-8'
+        : 'flex flex-col md:flex-row items-center gap-6'
+      }>
+        {/* SiriOrb */}
         <div className="flex items-center justify-center flex-shrink-0">
           <SiriOrb
-            size={isRecording ? '160px' : '120px'}
+            size={orbSize}
             animationDuration={isRecording ? 6 : 20}
             className="drop-shadow-xl transition-all duration-500"
             colors={
               isRecording
                 ? {
-                    c1: 'oklch(65% 0.25 25)',   // recording red
-                    c2: 'oklch(70% 0.20 350)',   // recording pink
-                    c3: 'oklch(60% 0.22 15)',    // recording orange-red
+                    c1: 'oklch(65% 0.25 25)',
+                    c2: 'oklch(70% 0.20 350)',
+                    c3: 'oklch(60% 0.22 15)',
                   }
                 : undefined
             }
           />
         </div>
 
-        {/* Controls — right side */}
+        {/* Controls */}
         <div className="flex flex-col items-center gap-4 flex-1">
-          {/* Waveform Canvas (visible during recording) */}
           {isRecording && (
             <canvas
               ref={canvasRef}
@@ -142,7 +151,6 @@ export function VoiceRecorder({ onSubmit, isSubmitting }: VoiceRecorderProps) {
             />
           )}
 
-          {/* Timer */}
           {isRecording && (
             <div className="text-center">
               <p className="text-2xl font-mono font-bold tabular-nums">
@@ -156,7 +164,6 @@ export function VoiceRecorder({ onSubmit, isSubmitting }: VoiceRecorderProps) {
             </div>
           )}
 
-          {/* Record / Stop Button */}
           <button
             onClick={isRecording ? stopRecording : startRecording}
             className={`flex h-16 w-16 items-center justify-center rounded-full transition-all ${

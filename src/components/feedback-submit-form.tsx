@@ -10,6 +10,7 @@ interface FeedbackSubmitFormProps {
   loopicalId: string
   authorId?: string
   showGuestName?: boolean
+  variant?: 'card' | 'standalone'
   onSuccess?: () => void
 }
 
@@ -17,6 +18,7 @@ export function FeedbackSubmitForm({
   loopicalId,
   authorId,
   showGuestName = false,
+  variant = 'card',
   onSuccess,
 }: FeedbackSubmitFormProps) {
   const [guestName, setGuestName] = useState('')
@@ -84,7 +86,7 @@ export function FeedbackSubmitForm({
           />
         </div>
       )}
-      <VoiceRecorder onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+      <VoiceRecorder onSubmit={handleSubmit} isSubmitting={isSubmitting} variant={variant} />
     </div>
   )
 }

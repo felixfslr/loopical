@@ -68,17 +68,7 @@ export default async function LoopicalDetailPage({
 
       {/* Loopical Header */}
       <div className="mb-8">
-        {loopical.media_url && (
-          <div className="aspect-video max-h-80 w-full overflow-hidden rounded-lg bg-muted mb-6">
-            <img
-              src={loopical.media_url}
-              alt={loopical.title}
-              className="h-full w-full object-contain"
-            />
-          </div>
-        )}
-
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
               {loopical.title}
@@ -95,12 +85,23 @@ export default async function LoopicalDetailPage({
             currentStatus={loopical.status as LoopicalStatus}
           />
         </div>
-      </div>
 
-      {/* Record Feedback */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-4">Feedback aufnehmen</h2>
-        <FeedbackSubmitForm loopicalId={loopicalId} authorId={user.id} />
+        {/* Splitscreen: Image + Recorder */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {loopical.media_url && (
+            <div className="overflow-hidden rounded-lg bg-muted flex items-center justify-center p-4">
+              <img
+                src={loopical.media_url}
+                alt={loopical.title}
+                className="max-w-full max-h-80 object-contain"
+              />
+            </div>
+          )}
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Feedback aufnehmen</h2>
+            <FeedbackSubmitForm loopicalId={loopicalId} authorId={user.id} />
+          </div>
+        </div>
       </div>
 
       {/* Feedback Entries */}

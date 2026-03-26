@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
@@ -35,53 +36,63 @@ export default async function GuestLoopicalFeedbackPage({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-2xl px-4 py-8 sm:py-16">
+    <div className="min-h-dvh grid grid-cols-1 lg:grid-cols-2">
+      {/* Left panel: Recording */}
+      <div className="relative flex flex-col items-center justify-center bg-gradient-to-b from-muted/50 to-background p-8 order-2 lg:order-1 min-h-[60vh] lg:min-h-0">
+        {/* Back link */}
         <Link
           href={`/feedback/${share_token}`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-8"
+          className="absolute top-4 left-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          Alle Feedback-Punkte
+          Zurück
         </Link>
 
-        {/* Loopical Info */}
-        <div className="mb-8">
-          {loopical.media_url && (
-            <div className="aspect-video max-h-64 w-full overflow-hidden rounded-lg bg-muted mb-6">
-              <img
-                src={loopical.media_url}
-                alt={loopical.title}
-                className="h-full w-full object-contain"
-              />
-            </div>
-          )}
+        {/* Theme toggle */}
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
 
-          <h1 className="text-2xl font-bold tracking-tight">
+        <FeedbackSubmitForm
+          loopicalId={loopicalId}
+          showGuestName
+          variant="standalone"
+        />
+
+        {/* Footer */}
+        <p className="absolute bottom-4 text-xs text-muted-foreground">
+          Powered by{' '}
+          <span className="font-medium text-foreground">Loopical</span>
+        </p>
+      </div>
+
+      {/* Right panel: Document/Image */}
+      <div className="relative flex flex-col bg-muted/30 order-1 lg:order-2">
+        {/* Title bar */}
+        <div className="p-6 border-b">
+          <h1 className="text-lg font-bold tracking-tight">
             {loopical.title}
           </h1>
           {loopical.description && (
-            <p className="text-muted-foreground mt-2">{loopical.description}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {loopical.description}
+            </p>
           )}
         </div>
 
-        {/* Recording UI */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-4">
-            Dein Voice-Feedback
-          </h2>
-          <FeedbackSubmitForm
-            loopicalId={loopicalId}
-            showGuestName
-          />
-        </div>
-
-        {/* Footer */}
-        <div className="mt-12 text-center">
-          <p className="text-xs text-muted-foreground">
-            Powered by{' '}
-            <span className="font-medium text-foreground">Loopical</span>
-          </p>
+        {/* Image area */}
+        <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
+          {loopical.media_url ? (
+            <img
+              src={loopical.media_url}
+              alt={loopical.title}
+              className="max-w-full max-h-full object-contain rounded-lg"
+            />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              Kein Dokument vorhanden
+            </p>
+          )}
         </div>
       </div>
     </div>
