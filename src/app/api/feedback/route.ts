@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     const loopicalId = formData.get('loopicalId') as string
     const authorId = formData.get('authorId') as string | null
     const guestName = formData.get('guestName') as string | null
+    const feedbackPointId = formData.get('feedbackPointId') as string | null
     const durationSeconds = parseInt(
       formData.get('durationSeconds') as string,
       10,
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
         processing_status: 'pending',
         author_id: authorId || null,
         guest_name: guestName || null,
+        feedback_point_id: feedbackPointId || null,
       })
       .select('id')
       .single()

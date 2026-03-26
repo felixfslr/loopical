@@ -25,7 +25,7 @@ export async function processFeedbackEntry(entryId: string) {
   // Fetch the entry and its loopical context
   const { data: entry } = await admin
     .from('feedback_entries')
-    .select('audio_url, loopical_id')
+    .select('audio_url, loopical_id, feedback_point_id')
     .eq('id', entryId)
     .single()
 
@@ -39,6 +39,20 @@ export async function processFeedbackEntry(entryId: string) {
     .select('title, description')
     .eq('id', entry.loopical_id)
     .single()
+
+  // If linked to a feedback point, fetch the question for context
+  let feedbackPointQuestion: string | null = null
+  if (entry.feedback_point_id) {
+    const { data: point } = await admin
+      .from('feedback_points')
+      .select('question_text, question_transcript')
+      .eq('id', entry.feedback_point_id)
+      .single()
+
+    if (point) {
+      feedbackPointQuestion = point.question_text || point.question_transcript || null
+    }
+  }
 
   try {
     // Step 1: Transcription
@@ -75,9 +89,13 @@ export async function processFeedbackEntry(entryId: string) {
     } else {
       await updateStatus(entryId, 'analyzing')
 
+      const description = feedbackPointQuestion
+        ? `${loopical?.description ?? ''}\n\nSpezifische Frage: ${feedbackPointQuestion}`.trim()
+        : loopical?.description ?? null
+
       const analysis = await analyzeTranscript(cleanTranscript, {
         title: loopical?.title ?? '',
-        description: loopical?.description ?? null,
+        description,
       })
 
       // Step 3: Save results and mark complete

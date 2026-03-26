@@ -20,6 +20,7 @@ const fadeSlide = {
 interface FeedbackSubmitFormProps {
   loopicalId: string
   authorId?: string
+  feedbackPointId?: string
   showGuestName?: boolean
   variant?: 'card' | 'standalone'
   onNewEntry?: (entryId: string) => void
@@ -29,6 +30,7 @@ interface FeedbackSubmitFormProps {
 export function FeedbackSubmitForm({
   loopicalId,
   authorId,
+  feedbackPointId,
   showGuestName = false,
   variant = 'card',
   onNewEntry,
@@ -51,6 +53,7 @@ export function FeedbackSubmitForm({
       formData.append('loopicalId', loopicalId)
       formData.append('durationSeconds', String(durationSeconds))
       if (authorId) formData.append('authorId', authorId)
+      if (feedbackPointId) formData.append('feedbackPointId', feedbackPointId)
       if (guestName) formData.append('guestName', guestName)
 
       const response = await fetch('/api/feedback', {

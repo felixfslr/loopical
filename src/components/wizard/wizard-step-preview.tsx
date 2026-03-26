@@ -1,0 +1,143 @@
+'use client'
+
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { AnnotatedImage } from '@/components/annotated-image'
+import { Badge } from '@/components/ui/badge'
+import { ArrowLeft, Loader2, MapPin, Mic, MessageCircleQuestion } from 'lucide-react'
+import type { MediaItem } from './wizard-step-media'
+import type { FeedbackPointDraft } from './wizard-step-points'
+import type { FeedbackMode } from '@/lib/types/database'
+
+interface WizardStepPreviewProps {
+  title: string
+  media: MediaItem[]
+  mode: FeedbackMode
+  points: FeedbackPointDraft[]
+  welcomeMessage: string
+  onWelcomeMessageChange: (msg: string) => void
+  onBack: () => void
+  onSubmit: () => void
+  isSubmitting: boolean
+}
+
+export function WizardStepPreview({
+  title,
+  media,
+  mode,
+  points,
+  welcomeMessage,
+  onWelcomeMessageChange,
+  onBack,
+  onSubmit,
+  isSubmitting,
+}: WizardStepPreviewProps) {
+  const firstImage = media.find((m) => m.preview)
+  const markersForFirstImage = points
+    .filter((p) => p.markerX != null && p.markerY != null && p.markerMediaIndex === 0)
+    .map((p) => ({
+      id: p.id,
+      label: p.questionText || 'Punkt',
+      x: p.markerX!,
+      y: p.markerY!,
+    }))
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold mb-1">Vorschau</h2>
+        <p className="text-sm text-muted-foreground">
+          So wird dein Loopical für Feedback-Geber aussehen.
+        </p>
+      </div>
+
+      {/* Preview card */}
+      <div className="rounded-lg border p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          <Badge variant={mode === 'guided' ? 'default' : 'secondary'}>
+            {mode === 'guided' ? 'Geführt' : 'Offen'}
+          </Badge>
+        </div>
+
+        {firstImage?.preview && (
+          <AnnotatedImage
+            src={firstImage.preview}
+            alt={title}
+            markers={mode === 'guided' ? markersForFirstImage : []}
+            className="border rounded-lg"
+          />
+        )}
+
+        {media.length > 1 && (
+          <p className="text-xs text-muted-foreground">
+            + {media.length - 1} weitere{media.length - 1 === 1 ? 's' : ''} Bild{media.length - 1 === 1 ? '' : 'er'}
+          </p>
+        )}
+
+        {mode === 'guided' && points.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{points.length} Feedback-Punkte:</p>
+            <div className="space-y-1.5">
+              {points.map((point, i) => (
+                <div key={point.id} className="flex items-start gap-2 text-sm">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">
+                    {i + 1}
+                  </div>
+                  <span className="flex-1">
+                    {point.questionText || <span className="italic text-muted-foreground">Keine Frage</span>}
+                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {point.markerX != null && (
+                      <MapPin className="h-3 w-3 text-muted-foreground" />
+                    )}
+                    {point.questionAudioUrl && (
+                      <Mic className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {mode === 'open' && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MessageCircleQuestion className="h-4 w-4" />
+            Feedback-Geber können frei sprechen
+          </div>
+        )}
+      </div>
+
+      {/* Welcome message */}
+      <div className="space-y-2">
+        <Label htmlFor="welcome-msg">Begrüßung für Feedback-Geber (optional)</Label>
+        <Textarea
+          id="welcome-msg"
+          value={welcomeMessage}
+          onChange={(e) => onWelcomeMessageChange(e.target.value)}
+          placeholder="z.B. Danke, dass du dir Zeit nimmst! Bitte achte besonders auf..."
+          rows={2}
+        />
+      </div>
+
+      <div className="flex justify-between">
+        <Button variant="ghost" onClick={onBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Zurück
+        </Button>
+        <Button onClick={onSubmit} disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Wird erstellt...
+            </>
+          ) : (
+            'Loopical erstellen'
+          )}
+        </Button>
+      </div>
+    </div>
+  )
+}

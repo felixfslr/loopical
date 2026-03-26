@@ -21,6 +21,8 @@ export type MediaType = 'image' | 'pdf' | 'url'
 
 export type MemberRole = 'owner' | 'admin' | 'member' | 'viewer'
 
+export type FeedbackMode = 'guided' | 'open'
+
 export interface WordTimestamp {
   word: string
   start: number
@@ -150,6 +152,8 @@ export interface Database {
           order_index: number
           annotation_x: number | null
           annotation_y: number | null
+          feedback_mode: FeedbackMode
+          welcome_message: string | null
         }
         Insert: {
           id?: string
@@ -164,6 +168,8 @@ export interface Database {
           order_index?: number
           annotation_x?: number | null
           annotation_y?: number | null
+          feedback_mode?: FeedbackMode
+          welcome_message?: string | null
         }
         Update: {
           id?: string
@@ -178,6 +184,8 @@ export interface Database {
           order_index?: number
           annotation_x?: number | null
           annotation_y?: number | null
+          feedback_mode?: FeedbackMode
+          welcome_message?: string | null
         }
         Relationships: [
           {
@@ -212,6 +220,7 @@ export interface Database {
           processing_status: string
           author_id: string | null
           guest_name: string | null
+          feedback_point_id: string | null
           created_at: string
         }
         Insert: {
@@ -229,6 +238,7 @@ export interface Database {
           processing_status?: string
           author_id?: string | null
           guest_name?: string | null
+          feedback_point_id?: string | null
           created_at?: string
         }
         Update: {
@@ -246,6 +256,7 @@ export interface Database {
           processing_status?: string
           author_id?: string | null
           guest_name?: string | null
+          feedback_point_id?: string | null
           created_at?: string
         }
         Relationships: [
@@ -261,6 +272,88 @@ export interface Database {
             columns: ['author_id']
             isOneToOne: false
             referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      loopical_media: {
+        Row: {
+          id: string
+          loopical_id: string
+          media_url: string
+          media_type: MediaType
+          order_index: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          loopical_id: string
+          media_url: string
+          media_type: MediaType
+          order_index?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          loopical_id?: string
+          media_url?: string
+          media_type?: MediaType
+          order_index?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'loopical_media_loopical_id_fkey'
+            columns: ['loopical_id']
+            isOneToOne: false
+            referencedRelation: 'loopicals'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      feedback_points: {
+        Row: {
+          id: string
+          loopical_id: string
+          question_text: string | null
+          question_audio_url: string | null
+          question_transcript: string | null
+          marker_x: number | null
+          marker_y: number | null
+          marker_media_index: number
+          order_index: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          loopical_id: string
+          question_text?: string | null
+          question_audio_url?: string | null
+          question_transcript?: string | null
+          marker_x?: number | null
+          marker_y?: number | null
+          marker_media_index?: number
+          order_index?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          loopical_id?: string
+          question_text?: string | null
+          question_audio_url?: string | null
+          question_transcript?: string | null
+          marker_x?: number | null
+          marker_y?: number | null
+          marker_media_index?: number
+          order_index?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'feedback_points_loopical_id_fkey'
+            columns: ['loopical_id']
+            isOneToOne: false
+            referencedRelation: 'loopicals'
             referencedColumns: ['id']
           },
         ]
@@ -332,6 +425,30 @@ export interface Database {
           feedback_count: number
           annotation_x: number | null
           annotation_y: number | null
+          feedback_mode: string
+          welcome_message: string | null
+        }[]
+      }
+      get_feedback_points_by_share_token: {
+        Args: { token: string; p_loopical_id: string }
+        Returns: {
+          id: string
+          question_text: string | null
+          question_audio_url: string | null
+          question_transcript: string | null
+          marker_x: number | null
+          marker_y: number | null
+          marker_media_index: number
+          order_index: number
+        }[]
+      }
+      get_loopical_media_by_share_token: {
+        Args: { token: string; p_loopical_id: string }
+        Returns: {
+          id: string
+          media_url: string
+          media_type: string
+          order_index: number
         }[]
       }
     }

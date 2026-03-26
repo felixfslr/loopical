@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { GuestAnnotatedImage } from '@/components/guest-annotated-image'
+import { GuidedFeedbackFlow } from '@/components/guided-feedback-flow'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
@@ -36,6 +37,32 @@ export default async function GuestLoopicalFeedbackPage({
     notFound()
   }
 
+  // Guided mode: load feedback points and media
+  if (loopical.feedback_mode === 'guided') {
+    const [{ data: feedbackPoints }, { data: loopicalMedia }] = await Promise.all([
+      admin.rpc('get_feedback_points_by_share_token', {
+        token: share_token,
+        p_loopical_id: loopicalId,
+      }),
+      admin.rpc('get_loopical_media_by_share_token', {
+        token: share_token,
+        p_loopical_id: loopicalId,
+      }),
+    ])
+
+    return (
+      <GuidedFeedbackFlow
+        loopicalId={loopicalId}
+        loopicalTitle={loopical.title}
+        welcomeMessage={loopical.welcome_message}
+        feedbackPoints={feedbackPoints ?? []}
+        media={loopicalMedia ?? []}
+        shareToken={share_token}
+      />
+    )
+  }
+
+  // Open mode: existing behavior
   // Get all loopicals for annotation markers
   const { data: allLoopicals } = await admin.rpc('get_loopicals_by_share_token', {
     token: share_token,
@@ -49,6 +76,15 @@ export default async function GuestLoopicalFeedbackPage({
       x: l.annotation_x,
       y: l.annotation_y,
     }))
+
+  // For open mode with multiple media, get the media items
+  const { data: loopicalMedia } = await admin.rpc('get_loopical_media_by_share_token', {
+    token: share_token,
+    p_loopical_id: loopicalId,
+  })
+
+  // Use first media from loopical_media table, fallback to legacy media_url
+  const displayMediaUrl = loopicalMedia?.[0]?.media_url ?? loopical.media_url
 
   return (
     <div className="min-h-dvh flex flex-col lg:grid lg:grid-cols-2">
@@ -81,9 +117,9 @@ export default async function GuestLoopicalFeedbackPage({
 
         {/* Image area */}
         <div className="flex items-center justify-center p-4 lg:p-6 lg:flex-1">
-          {loopical.media_url ? (
+          {displayMediaUrl ? (
             <GuestAnnotatedImage
-              src={loopical.media_url}
+              src={displayMediaUrl}
               alt={loopical.title}
               markers={markers}
               activeMarkerId={loopicalId}

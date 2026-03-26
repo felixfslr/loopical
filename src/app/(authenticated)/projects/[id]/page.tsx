@@ -4,10 +4,9 @@ import { notFound } from 'next/navigation'
 import { LoopicalCard } from '@/components/loopical-card'
 import { EmptyState } from '@/components/empty-state'
 import { ShareDialog } from '@/components/share-dialog'
-import { CreateLoopicalDialog } from '@/components/create-loopical-dialog'
 import { DropZoneUploader } from '@/components/drop-zone-uploader'
-import { createLoopical } from './actions'
-import { ArrowLeft } from 'lucide-react'
+import { buttonVariants } from '@/components/ui/button'
+import { ArrowLeft, Plus } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function ProjectDetailPage({
@@ -69,7 +68,10 @@ export default async function ProjectDetailPage({
             projectName={project.name}
             loopicalCount={loopicals?.length ?? 0}
           />
-          <CreateLoopicalDialog projectId={id} action={createLoopical} />
+          <Link href={`/projects/${id}/loopicals/new`} className={buttonVariants()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Neues Loopical
+          </Link>
         </div>
       </div>
 

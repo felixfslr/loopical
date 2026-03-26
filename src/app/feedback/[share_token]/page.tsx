@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { MessageSquare, Mic } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { MessageSquare, Mic, ListChecks } from 'lucide-react'
 
 export default async function GuestFeedbackPage({
   params,
@@ -76,6 +77,12 @@ export default async function GuestFeedbackPage({
                       )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0 ml-4">
+                      {loopical.feedback_mode === 'guided' && (
+                        <Badge variant="secondary" className="text-xs gap-1">
+                          <ListChecks className="h-3 w-3" />
+                          Geführt
+                        </Badge>
+                      )}
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <MessageSquare className="h-3 w-3" />
                         {loopical.feedback_count}
