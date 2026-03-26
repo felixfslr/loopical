@@ -114,8 +114,9 @@ export function VoiceRecorder({ onSubmit, isSubmitting, variant = 'card' }: Voic
   // Recording / Idle state — splitscreen with SiriOrb
   const isStandalone = variant === 'standalone'
 
+  // Responsive orb sizes: smaller on mobile for standalone
   const orbSize = isStandalone
-    ? (isRecording ? '280px' : '240px')
+    ? (isRecording ? '200px' : '160px')
     : (isRecording ? '160px' : '120px')
 
   return (
