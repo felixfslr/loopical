@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       .update({ processing_status: 'pending' })
       .eq('id', entryId)
 
-    // Process inline (don't use after() so we can report errors)
+    // Process inline
     await processFeedbackEntry(entryId)
 
     return NextResponse.json({ success: true })
