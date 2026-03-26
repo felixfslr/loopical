@@ -36,7 +36,6 @@ export const SiriOrb: React.FC<SiriOrbProps> = ({
   const blurAmount = Math.max(sizeValue * 0.08, 8)
   const contrastAmount = Math.max(sizeValue * 0.003, 1.8)
 
-  // Fallback motionValue when no amplitude is provided
   const zero = useMotionValue(0)
   const amp = amplitude ?? zero
 
@@ -54,17 +53,26 @@ export const SiriOrb: React.FC<SiriOrbProps> = ({
     "--contrast-amount": contrastAmount,
   } as React.CSSProperties
 
+  // Wrapper handles scale + filter so they don't break overflow:hidden on .siri-orb
   return (
     <motion.div
-      className={cn("siri-orb", className)}
+      className={className}
       style={{
         width: size,
         height: size,
-        ...cssVars,
         scale,
         filter: filterStyle,
       }}
-    />
+    >
+      <div
+        className={cn("siri-orb")}
+        style={{
+          width: "100%",
+          height: "100%",
+          ...cssVars,
+        }}
+      />
+    </motion.div>
   )
 }
 
