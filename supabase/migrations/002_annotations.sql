@@ -9,7 +9,9 @@ alter table public.loopicals
 comment on column public.loopicals.annotation_x is 'X position as percentage (0-100) on the project image';
 comment on column public.loopicals.annotation_y is 'Y position as percentage (0-100) on the project image';
 
--- Update function to include annotation columns
+-- Drop and recreate function (return type changed)
+drop function if exists public.get_loopicals_by_share_token(text);
+
 create or replace function public.get_loopicals_by_share_token(token text)
 returns table (
   id uuid,
