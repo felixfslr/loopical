@@ -70,6 +70,8 @@ src/
     feedback-detail.tsx             # Full feedback card with player
     processing-status.tsx           # Realtime status indicator
     app-sidebar.tsx                 # Navigation sidebar
+    guided-feedback-flow.tsx        # Gast-seitiger geführter Feedback-Flow
+    wizard/                         # Loopical-Erstellungs-Wizard (Step 1-4)
     ...
   app/
     (authenticated)/                # Route group — requireUser() in layout
@@ -82,15 +84,23 @@ src/
     login/                          # Login page (demo + magic link)
     auth/{callback,confirm}/        # OAuth + magic link handlers
     api/feedback/                   # Audio upload + AI trigger
+    api/question-audio/             # Voice-Frage Upload + Transkription
 supabase/
   migrations/001_schema.sql         # Full schema, RLS, functions, indexes
+  migrations/002_annotations.sql    # Annotation coordinates
+  migrations/003_wizard_schema.sql  # Multi-media, feedback points, guided mode
 ```
 
 ## Datenbank
-6 Tabellen: `profiles`, `projects`, `project_members`, `loopicals`, `feedback_entries`, `comments`
+8 Tabellen: `profiles`, `projects`, `project_members`, `loopicals`, `loopical_media`, `feedback_points`, `feedback_entries`, `comments`
+- `loopical_media` — mehrere Bilder/Screenshots pro Loopical
+- `feedback_points` — spezifische Fragen mit optionalen Markern (für guided mode)
+- `loopicals.feedback_mode` — `'guided'` oder `'open'`
+- `feedback_entries.feedback_point_id` — Zuordnung zu spezifischem Feedback-Punkt
 - RLS ist aktiviert auf allen Tabellen (aber authenticated ops nutzen Admin Client)
 - Storage Buckets: `audio` (public read, anyone upload), `media` (public read, auth upload)
 - Realtime aktiviert auf `feedback_entries`
+- Guest-Zugriff via Security-Definer-Funktionen: `get_project_by_share_token()`, `get_loopicals_by_share_token()`, `get_feedback_points_by_share_token()`, `get_loopical_media_by_share_token()`
 
 ## Environment Variables
 ```
@@ -109,6 +119,27 @@ npm run dev     # Start dev server (Turbopack)
 npm run build   # Production build
 npm run lint    # ESLint
 ```
+
+## Deployment & Infrastruktur
+
+### Vercel
+- Auto-deploy bei push auf `main` — kein manuelles Deploy nötig
+- Projekt-ID: `prj_P6u7afkQYf16PZJrj19yKWtwlQFn`
+- Team-ID: `team_lEdzIh1u5lI7ql7LqRkP8IpJ`
+- Deployment-Status prüfen via Vercel MCP Tools (`list_deployments`, `get_deployment`, `get_runtime_logs`)
+- Production URL: `https://loopical.vercel.app`
+
+### Supabase Migrations
+- CLI ist installiert (`npx supabase`), Projekt ist gelinkt
+- Migration anwenden: `SUPABASE_ACCESS_TOKEN=<pat> npx supabase db push --linked`
+- Migration immer VOR dem Push zu GitHub anwenden (DB-Schema muss bereit sein wenn Vercel deployed)
+
+## Wichtige Gotchas
+
+### Server vs Client Components
+- `src/components/ui/button.tsx` hat `"use client"` — `buttonVariants()` kann NICHT in Server Components aufgerufen werden. Stattdessen inline Klassen oder einen Client-Wrapper verwenden.
+- Generell: Alle shadcn/ui Komponenten in diesem Projekt sind `"use client"` (base-ui braucht das). Exports aus diesen Dateien (auch reine Funktionen wie CVA-Varianten) können nicht in Server Components importiert und aufgerufen werden.
+- Button hat kein `asChild` Prop (base-ui, nicht radix). Für Links mit Button-Styling: `<Button render={<Link href="..." />}>` oder inline Klassen auf dem Link.
 
 ## currentDate
 Today's date is 2026-03-26.
