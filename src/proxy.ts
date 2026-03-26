@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 const publicPaths = ['/', '/login', '/auth', '/feedback', '/api', '/_next', '/favicon.ico']
@@ -9,9 +10,8 @@ function isPublicPath(pathname: string) {
   )
 }
 
-export async function proxy(request: Request) {
-  const url = new URL(request.url)
-  const { pathname } = url
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
 
   // Allow public paths through
   if (isPublicPath(pathname)) {
@@ -26,18 +26,16 @@ export async function proxy(request: Request) {
     {
       cookies: {
         getAll() {
-          const cookieHeader = request.headers.get('cookie') ?? ''
-          return cookieHeader.split(';').filter(Boolean).map((cookie) => {
-            const [name, ...rest] = cookie.trim().split('=')
-            return { name, value: rest.join('=') }
-          })
+          return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
+          // Set cookies on the request (for downstream server components)
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value)
+          })
+          // Set cookies on the response (for the browser)
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.headers.append(
-              'set-cookie',
-              `${name}=${value}; Path=${options?.path ?? '/'}; HttpOnly; SameSite=Lax${options?.maxAge ? `; Max-Age=${options.maxAge}` : ''}${options?.secure ? '; Secure' : ''}`,
-            )
+            response.cookies.set(name, value, options)
           })
         },
       },
