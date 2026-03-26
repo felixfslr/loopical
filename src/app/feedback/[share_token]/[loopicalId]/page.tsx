@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { GuestAnnotatedImage } from '@/components/guest-annotated-image'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
@@ -34,6 +35,20 @@ export default async function GuestLoopicalFeedbackPage({
   if (!loopical) {
     notFound()
   }
+
+  // Get all loopicals for annotation markers
+  const { data: allLoopicals } = await admin.rpc('get_loopicals_by_share_token', {
+    token: share_token,
+  })
+
+  const markers = (allLoopicals ?? [])
+    .filter((l: any) => l.annotation_x != null && l.annotation_y != null)
+    .map((l: any) => ({
+      id: l.id,
+      label: l.title,
+      x: l.annotation_x,
+      y: l.annotation_y,
+    }))
 
   return (
     <div className="min-h-dvh grid grid-cols-1 lg:grid-cols-2">
@@ -83,10 +98,12 @@ export default async function GuestLoopicalFeedbackPage({
         {/* Image area */}
         <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
           {loopical.media_url ? (
-            <img
+            <GuestAnnotatedImage
               src={loopical.media_url}
               alt={loopical.title}
-              className="max-w-full max-h-full object-contain rounded-lg"
+              markers={markers}
+              activeMarkerId={loopicalId}
+              shareToken={share_token}
             />
           ) : (
             <p className="text-muted-foreground text-sm">

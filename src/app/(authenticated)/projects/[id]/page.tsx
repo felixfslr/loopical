@@ -3,8 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import { LoopicalCard } from '@/components/loopical-card'
 import { EmptyState } from '@/components/empty-state'
-import { ShareLink } from '@/components/share-link'
+import { ShareDialog } from '@/components/share-dialog'
 import { CreateLoopicalDialog } from '@/components/create-loopical-dialog'
+import { DropZoneUploader } from '@/components/drop-zone-uploader'
 import { createLoopical } from './actions'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
@@ -63,9 +64,18 @@ export default async function ProjectDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <ShareLink shareToken={project.share_token} />
+          <ShareDialog
+            shareToken={project.share_token}
+            projectName={project.name}
+            loopicalCount={loopicals?.length ?? 0}
+          />
           <CreateLoopicalDialog projectId={id} action={createLoopical} />
         </div>
+      </div>
+
+      {/* Drop Zone */}
+      <div className="mb-6">
+        <DropZoneUploader projectId={id} />
       </div>
 
       {/* Loopicals List */}

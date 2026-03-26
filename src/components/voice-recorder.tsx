@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { useMediaRecorder } from '@/hooks/use-media-recorder'
 import { useAudioVisualizer } from '@/hooks/use-audio-visualizer'
+import { useAmplitude } from '@/hooks/use-amplitude'
 import { SiriOrb } from '@/components/ui/siri-orb'
 import { Button } from '@/components/ui/button'
 import { Mic, Square, Play, Pause, RotateCcw, Send } from 'lucide-react'
@@ -30,6 +31,7 @@ export function VoiceRecorder({ onSubmit, isSubmitting, variant = 'card' }: Voic
   const [isPlaying, setIsPlaying] = useState(false)
 
   useAudioVisualizer(analyserNode, canvasRef)
+  const amplitude = useAmplitude(isRecording ? analyserNode : null)
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -128,6 +130,7 @@ export function VoiceRecorder({ onSubmit, isSubmitting, variant = 'card' }: Voic
             size={orbSize}
             animationDuration={isRecording ? 6 : 20}
             className="drop-shadow-xl transition-all duration-500"
+            amplitude={isRecording ? amplitude : undefined}
             colors={
               isRecording
                 ? {

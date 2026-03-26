@@ -72,6 +72,93 @@ export async function createLoopical(
   return { error: null, success: true }
 }
 
+export async function createLoopicalFromFile(formData: FormData) {
+  const user = await requireUser()
+  const admin = createAdminClient()
+
+  const projectId = formData.get('projectId') as string
+  const title = formData.get('title') as string
+  const file = formData.get('file') as File
+
+  if (!file || file.size === 0) {
+    return { error: 'Keine Datei ausgewählt.', loopicalId: null }
+  }
+
+  // Upload file
+  const ext = file.name.split('.').pop()
+  const path = `${projectId}/${crypto.randomUUID()}.${ext}`
+
+  const { error: uploadError } = await admin.storage
+    .from('media')
+    .upload(path, file)
+
+  if (uploadError) {
+    console.error('Upload error:', uploadError)
+    return { error: 'Datei konnte nicht hochgeladen werden.', loopicalId: null }
+  }
+
+  const {
+    data: { publicUrl },
+  } = admin.storage.from('media').getPublicUrl(path)
+
+  // Get max order_index
+  const { data: maxOrder } = await admin
+    .from('loopicals')
+    .select('order_index')
+    .eq('project_id', projectId)
+    .order('order_index', { ascending: false })
+    .limit(1)
+    .single()
+
+  const orderIndex = (maxOrder?.order_index ?? -1) + 1
+
+  const mediaType = file.type.startsWith('image/') ? 'image' : 'pdf'
+
+  const { data, error } = await admin
+    .from('loopicals')
+    .insert({
+      project_id: projectId,
+      title: title.trim(),
+      media_url: publicUrl,
+      media_type: mediaType,
+      created_by: user.id,
+      order_index: orderIndex,
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Create loopical error:', error)
+    return { error: `Fehler: ${error.message}`, loopicalId: null }
+  }
+
+  revalidatePath(`/projects/${projectId}`)
+  return { error: null, loopicalId: data.id }
+}
+
+export async function updateLoopicalAnnotation(
+  loopicalId: string,
+  projectId: string,
+  x: number,
+  y: number,
+) {
+  await requireUser()
+  const admin = createAdminClient()
+
+  const { error } = await admin
+    .from('loopicals')
+    .update({ annotation_x: x, annotation_y: y })
+    .eq('id', loopicalId)
+    .eq('project_id', projectId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath(`/projects/${projectId}`)
+  return { error: null }
+}
+
 export async function deleteProject(projectId: string) {
   const user = await requireUser()
   const admin = createAdminClient()

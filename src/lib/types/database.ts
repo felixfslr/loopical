@@ -148,6 +148,8 @@ export interface Database {
           created_by: string
           created_at: string
           order_index: number
+          annotation_x: number | null
+          annotation_y: number | null
         }
         Insert: {
           id?: string
@@ -160,6 +162,8 @@ export interface Database {
           created_by: string
           created_at?: string
           order_index?: number
+          annotation_x?: number | null
+          annotation_y?: number | null
         }
         Update: {
           id?: string
@@ -172,6 +176,8 @@ export interface Database {
           created_by?: string
           created_at?: string
           order_index?: number
+          annotation_x?: number | null
+          annotation_y?: number | null
         }
         Relationships: [
           {
@@ -324,6 +330,8 @@ export interface Database {
           status: string
           order_index: number
           feedback_count: number
+          annotation_x: number | null
+          annotation_y: number | null
         }[]
       }
     }

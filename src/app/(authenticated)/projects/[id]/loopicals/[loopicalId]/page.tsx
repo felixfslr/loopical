@@ -5,6 +5,7 @@ import { FeedbackDetail } from '@/components/feedback-detail'
 import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
 import { StatusSelector } from '@/components/status-selector'
 import { EmptyState } from '@/components/empty-state'
+import { EditableAnnotation } from '@/components/editable-annotation'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import type { LoopicalStatus } from '@/lib/types/database'
@@ -89,13 +90,14 @@ export default async function LoopicalDetailPage({
         {/* Splitscreen: Image + Recorder */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {loopical.media_url && (
-            <div className="overflow-hidden rounded-lg bg-muted flex items-center justify-center p-4">
-              <img
-                src={loopical.media_url}
-                alt={loopical.title}
-                className="max-w-full max-h-80 object-contain"
-              />
-            </div>
+            <EditableAnnotation
+              src={loopical.media_url}
+              alt={loopical.title}
+              loopicalId={loopicalId}
+              projectId={id}
+              annotationX={loopical.annotation_x}
+              annotationY={loopical.annotation_y}
+            />
           )}
           <div>
             <h2 className="text-lg font-semibold mb-4">Feedback aufnehmen</h2>
