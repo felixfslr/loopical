@@ -32,7 +32,8 @@ export async function createProject(
     .single()
 
   if (error) {
-    return { error: 'Projekt konnte nicht erstellt werden.', projectId: null }
+    console.error('Create project error:', error)
+    return { error: `Fehler: ${error.message} (${error.code})`, projectId: null }
   }
 
   return { error: null, projectId: data.id }

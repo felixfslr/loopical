@@ -64,7 +64,8 @@ export async function createLoopical(
   })
 
   if (error) {
-    return { error: 'Loopical konnte nicht erstellt werden.', success: false }
+    console.error('Create loopical error:', error)
+    return { error: `Fehler: ${error.message} (${error.code})`, success: false }
   }
 
   revalidatePath(`/projects/${projectId}`)
