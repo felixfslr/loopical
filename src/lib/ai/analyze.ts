@@ -63,7 +63,9 @@ Regeln:
   }
 
   const data = await response.json()
-  const raw = data.choices?.[0]?.message?.content ?? ''
+  // Kimi K2.5 may put content in 'content' or 'reasoning' field
+  const message = data.choices?.[0]?.message
+  const raw = message?.content || message?.reasoning || ''
 
   return parseAIResponse(raw)
 }
@@ -101,7 +103,7 @@ function parseAIResponse(raw: string): AnalysisResult {
   } catch (e) {
     console.error('Failed to parse AI response:', e, 'Raw:', raw)
     return {
-      summary: 'AI-Analyse konnte nicht verarbeitet werden.',
+      summary: 'Kein klares Feedback erkannt — möglicherweise war die Aufnahme zu leise oder enthielt nur Hintergrundgeräusche.',
       actionItems: [],
       sentiment: 'neutral',
       tags: ['general'],

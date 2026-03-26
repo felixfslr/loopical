@@ -55,25 +55,43 @@ export async function processFeedbackEntry(entryId: string) {
       })
       .eq('id', entryId)
 
-    // Step 2: AI Analysis
-    await updateStatus(entryId, 'analyzing')
+    // Step 2: AI Analysis (skip if transcript is empty/noise)
+    const cleanTranscript = transcription.transcript
+      .replace(/\[.*?\]/g, '') // remove [background noise] etc.
+      .trim()
 
-    const analysis = await analyzeTranscript(transcription.transcript, {
-      title: loopical?.title ?? '',
-      description: loopical?.description ?? null,
-    })
+    if (cleanTranscript.length < 5) {
+      // Too short / only noise — skip AI, mark complete with note
+      await admin
+        .from('feedback_entries')
+        .update({
+          summary: 'Keine Sprache erkannt — die Aufnahme enthielt nur Hintergrundgeräusche.',
+          action_items: [],
+          sentiment: 'neutral',
+          tags: ['general'],
+          processing_status: 'complete',
+        })
+        .eq('id', entryId)
+    } else {
+      await updateStatus(entryId, 'analyzing')
 
-    // Step 3: Save results and mark complete
-    await admin
-      .from('feedback_entries')
-      .update({
-        summary: analysis.summary,
-        action_items: analysis.actionItems as unknown as Json,
-        sentiment: analysis.sentiment,
-        tags: analysis.tags,
-        processing_status: 'complete',
+      const analysis = await analyzeTranscript(cleanTranscript, {
+        title: loopical?.title ?? '',
+        description: loopical?.description ?? null,
       })
-      .eq('id', entryId)
+
+      // Step 3: Save results and mark complete
+      await admin
+        .from('feedback_entries')
+        .update({
+          summary: analysis.summary,
+          action_items: analysis.actionItems as unknown as Json,
+          sentiment: analysis.sentiment,
+          tags: analysis.tags,
+          processing_status: 'complete',
+        })
+        .eq('id', entryId)
+    }
   } catch (err) {
     console.error('AI pipeline error for entry', entryId, ':', err)
     await updateStatus(entryId, 'error')

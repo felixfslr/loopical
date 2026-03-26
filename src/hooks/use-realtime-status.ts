@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useEffect, useState, useCallback } from 'react'
 import type { ProcessingStatus } from '@/lib/types/database'
 
 export function useRealtimeStatus(
@@ -10,32 +9,39 @@ export function useRealtimeStatus(
 ) {
   const [status, setStatus] = useState<ProcessingStatus>(initialStatus)
 
+  const poll = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/feedback-status?id=${entryId}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.status) {
+          setStatus(data.status)
+          return data.status
+        }
+      }
+    } catch {
+      // ignore polling errors
+    }
+    return null
+  }, [entryId])
+
   useEffect(() => {
     if (initialStatus === 'complete' || initialStatus === 'error') return
 
-    const supabase = createClient()
+    // Poll every 2 seconds until complete or error
+    const interval = setInterval(async () => {
+      const newStatus = await poll()
+      if (newStatus === 'complete' || newStatus === 'error') {
+        clearInterval(interval)
+        // Reload page to show full results
+        if (newStatus === 'complete') {
+          window.location.reload()
+        }
+      }
+    }, 2000)
 
-    const channel = supabase
-      .channel(`feedback-${entryId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'feedback_entries',
-          filter: `id=eq.${entryId}`,
-        },
-        (payload) => {
-          const newStatus = payload.new.processing_status as ProcessingStatus
-          setStatus(newStatus)
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [entryId, initialStatus])
+    return () => clearInterval(interval)
+  }, [entryId, initialStatus, poll])
 
   return status
 }
