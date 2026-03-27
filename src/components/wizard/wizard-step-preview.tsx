@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { AnnotatedImage } from '@/components/annotated-image'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, MapPin, Mic, MessageCircleQuestion, Sparkles } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, MapPin, Mic, MessageCircleQuestion, Sparkles, Link2 } from 'lucide-react'
 import type { MediaItem } from './wizard-step-media'
 import type { FeedbackPointDraft } from './wizard-step-points'
 import type { FeedbackMode } from '@/lib/types/database'
@@ -17,6 +17,7 @@ interface WizardStepPreviewProps {
   mode: FeedbackMode
   points: FeedbackPointDraft[]
   welcomeMessage: string
+  contextUrl: string
   onWelcomeMessageChange: (msg: string) => void
   onBack: () => void
   onSubmit: () => void
@@ -29,6 +30,7 @@ export function WizardStepPreview({
   mode,
   points,
   welcomeMessage,
+  contextUrl,
   onWelcomeMessageChange,
   onBack,
   onSubmit,
@@ -64,6 +66,21 @@ export function WizardStepPreview({
             {mode === 'guided' ? 'Geführt' : 'Offen'}
           </Badge>
         </div>
+
+        {/* Context URL */}
+        {contextUrl && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Link2 className="h-3.5 w-3.5 shrink-0" />
+            <a
+              href={contextUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="truncate hover:text-foreground transition-colors"
+            >
+              {contextUrl}
+            </a>
+          </div>
+        )}
 
         {/* Image carousel */}
         {currentImage?.preview && (
@@ -124,6 +141,9 @@ export function WizardStepPreview({
                     {point.questionText || <span className="italic text-muted-foreground">Kein Text</span>}
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {point.contextUrl && (
+                      <Link2 className="h-3 w-3 text-muted-foreground" />
+                    )}
                     {point.markerX != null && (
                       <MapPin className="h-3 w-3 text-muted-foreground" />
                     )}

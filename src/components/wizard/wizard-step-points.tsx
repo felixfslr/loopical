@@ -17,6 +17,7 @@ import {
   MessageCircleQuestion,
   Sparkles,
   Loader2,
+  Link2,
 } from 'lucide-react'
 import type { MediaItem } from './wizard-step-media'
 
@@ -29,6 +30,7 @@ export interface FeedbackPointDraft {
   markerX?: number | null
   markerY?: number | null
   markerMediaIndex: number
+  contextUrl?: string | null
   isUploading?: boolean
 }
 
@@ -301,7 +303,7 @@ export function WizardStepPoints({
                         />
                       </div>
 
-                      {/* Marker info */}
+                      {/* Marker info + URL toggle */}
                       <div className="pl-8 flex items-center gap-2 text-xs text-muted-foreground">
                         {point.markerX != null ? (
                           <>
@@ -311,7 +313,37 @@ export function WizardStepPoints({
                         ) : (
                           <span className="italic">Kein Marker — allgemeiner Punkt</span>
                         )}
+                        <span className="mx-1">·</span>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            updatePoint(point.id, {
+                              contextUrl: point.contextUrl === undefined ? '' : undefined,
+                            })
+                          }}
+                        >
+                          <Link2 className="h-3 w-3" />
+                          {point.contextUrl !== undefined ? 'URL entfernen' : 'URL hinzufügen'}
+                        </button>
                       </div>
+
+                      {/* Per-point context URL */}
+                      {point.contextUrl !== undefined && (
+                        <div className="pl-8">
+                          <Input
+                            type="url"
+                            value={point.contextUrl || ''}
+                            onChange={(e) =>
+                              updatePoint(point.id, { contextUrl: e.target.value })
+                            }
+                            placeholder="URL für diesen Punkt (überschreibt Loopical-URL)"
+                            className="h-7 text-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      )}
                     </motion.div>
                   )
                 })}

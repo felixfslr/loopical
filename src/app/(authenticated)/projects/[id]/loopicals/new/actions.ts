@@ -13,6 +13,7 @@ interface FeedbackPointInput {
   markerY: number | null
   markerMediaIndex: number
   orderIndex: number
+  contextUrl: string | null
 }
 
 export async function createLoopicalWizard(formData: FormData) {
@@ -25,6 +26,15 @@ export async function createLoopicalWizard(formData: FormData) {
   const welcomeMessage = (formData.get('welcomeMessage') as string) || null
   const mediaFiles = formData.getAll('media') as File[]
   const feedbackPointsJson = formData.get('feedbackPoints') as string | null
+  const contextUrl = (formData.get('contextUrl') as string)?.trim() || null
+
+  // Validate context URL if provided
+  if (contextUrl && !/^https?:\/\//.test(contextUrl)) {
+    return { error: 'URL muss mit http:// oder https:// beginnen.', loopicalId: null }
+  }
+  if (contextUrl && contextUrl.length > 2048) {
+    return { error: 'URL darf maximal 2048 Zeichen lang sein.', loopicalId: null }
+  }
 
   if (!title?.trim()) {
     return { error: 'Bitte gib einen Titel ein.', loopicalId: null }
@@ -81,6 +91,7 @@ export async function createLoopicalWizard(formData: FormData) {
       order_index: orderIndex,
       feedback_mode: feedbackMode,
       welcome_message: welcomeMessage || null,
+      context_url: contextUrl,
     })
     .select('id')
     .single()
@@ -122,6 +133,7 @@ export async function createLoopicalWizard(formData: FormData) {
           marker_y: p.markerY,
           marker_media_index: p.markerMediaIndex,
           order_index: p.orderIndex,
+          context_url: p.contextUrl || null,
         }))
 
         const { error: pointsError } = await admin

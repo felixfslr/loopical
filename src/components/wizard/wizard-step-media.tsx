@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Upload, X, GripVertical, ArrowRight } from 'lucide-react'
+import { Upload, X, GripVertical, ArrowRight, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
@@ -22,6 +22,8 @@ interface WizardStepMediaProps {
   onTitleChange: (title: string) => void
   media: MediaItem[]
   onMediaChange: (media: MediaItem[]) => void
+  contextUrl: string
+  onContextUrlChange: (url: string) => void
   onNext: () => void
 }
 
@@ -30,6 +32,8 @@ export function WizardStepMedia({
   onTitleChange,
   media,
   onMediaChange,
+  contextUrl,
+  onContextUrlChange,
   onNext,
 }: WizardStepMediaProps) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -210,6 +214,24 @@ export function WizardStepMedia({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Context URL */}
+      <div className="space-y-2">
+        <Label htmlFor="wizard-context-url" className="flex items-center gap-1.5">
+          <Link2 className="h-3.5 w-3.5" />
+          Live-URL (optional)
+        </Label>
+        <Input
+          id="wizard-context-url"
+          type="url"
+          value={contextUrl}
+          onChange={(e) => onContextUrlChange(e.target.value)}
+          placeholder="z.B. https://app.example.com/dashboard"
+        />
+        <p className="text-xs text-muted-foreground">
+          Feedback-Geber können diese Seite in einem neuen Tab öffnen, um das Tool live zu nutzen.
+        </p>
+      </div>
 
       <div className="flex justify-end">
         <Button onClick={onNext} disabled={!isValid}>

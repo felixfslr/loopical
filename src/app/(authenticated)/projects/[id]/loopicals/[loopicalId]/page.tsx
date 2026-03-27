@@ -99,6 +99,7 @@ export default async function LoopicalDetailPage({
           ai_summary: (loopical as any).ai_summary ?? null,
           ai_action_items: (loopical as any).ai_action_items ?? null,
           ai_summary_updated_at: (loopical as any).ai_summary_updated_at ?? null,
+          context_url: loopical.context_url ?? null,
         }}
         projectId={id}
         authorId={user.id}
@@ -112,6 +113,7 @@ export default async function LoopicalDetailPage({
           marker_y: p.marker_y,
           marker_media_index: p.marker_media_index ?? 0,
           order_index: p.order_index ?? 0,
+          context_url: p.context_url ?? null,
         }))}
         mediaItems={(loopicalMedia ?? []).map((m) => ({
           id: m.id,

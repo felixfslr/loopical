@@ -44,6 +44,22 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
     }
   }, [])
 
+  // Show recording indicator in tab title
+  useEffect(() => {
+    if (!isRecording) return
+    const originalTitle = document.title
+    document.title = '\u{1F534} Aufnahme läuft...'
+    return () => { document.title = originalTitle }
+  }, [isRecording])
+
+  // Warn before closing tab during recording
+  useEffect(() => {
+    if (!isRecording) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isRecording])
+
   const startRecording = useCallback(async () => {
     try {
       setError(null)

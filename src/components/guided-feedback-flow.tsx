@@ -20,6 +20,7 @@ import {
   Pause,
   SkipForward,
   AlertCircle,
+  ExternalLink,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -32,6 +33,7 @@ interface FeedbackPoint {
   marker_y: number | null
   marker_media_index: number
   order_index: number
+  context_url: string | null
 }
 
 interface MediaItem {
@@ -51,6 +53,7 @@ interface GuidedFeedbackFlowProps {
   loopicalId: string
   loopicalTitle: string
   welcomeMessage: string | null
+  contextUrl: string | null
   feedbackPoints: FeedbackPoint[]
   media: MediaItem[]
   shareToken: string
@@ -60,6 +63,7 @@ export function GuidedFeedbackFlow({
   loopicalId,
   loopicalTitle,
   welcomeMessage,
+  contextUrl,
   feedbackPoints,
   media,
   shareToken,
@@ -79,6 +83,7 @@ export function GuidedFeedbackFlow({
   // Get the right image for the current point
   const currentMediaIndex = currentPoint?.marker_media_index ?? 0
   const currentMedia = media[currentMediaIndex]
+  const effectiveUrl = currentPoint?.context_url || contextUrl
 
   // Build markers for current image
   const markersForImage = feedbackPoints
@@ -188,9 +193,14 @@ export function GuidedFeedbackFlow({
             {welcomeMessage}
           </p>
         )}
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground mb-4">
           {totalPoints} Feedback-{totalPoints === 1 ? 'Punkt' : 'Punkte'}
         </p>
+        {contextUrl && (
+          <p className="text-xs text-muted-foreground mb-6 max-w-md">
+            Du kannst die Seite/App in einem neuen Tab öffnen, um sie live zu nutzen, während du Feedback aufnimmst.
+          </p>
+        )}
 
         <div className="w-full max-w-xs space-y-4">
           <div className="space-y-2">
@@ -332,6 +342,21 @@ export function GuidedFeedbackFlow({
             <div className="mb-6">
               <QuestionDisplay point={currentPoint} index={currentIndex} />
             </div>
+
+            {/* Live context link */}
+            {effectiveUrl && (
+              <div className="mb-6">
+                <a
+                  href={effectiveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium hover:bg-muted/50 transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Live ansehen
+                </a>
+              </div>
+            )}
 
             {/* Voice recorder or recording status */}
             <div className="flex-1 flex flex-col justify-center">

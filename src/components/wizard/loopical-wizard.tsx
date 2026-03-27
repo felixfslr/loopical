@@ -15,6 +15,7 @@ interface WizardState {
   step: number
   title: string
   media: MediaItem[]
+  contextUrl: string
   feedbackMode: FeedbackMode
   feedbackPoints: FeedbackPointDraft[]
   welcomeMessage: string
@@ -27,6 +28,7 @@ type WizardAction =
   | { type: 'SET_MODE'; mode: FeedbackMode }
   | { type: 'SET_POINTS'; points: FeedbackPointDraft[] }
   | { type: 'SET_WELCOME'; message: string }
+  | { type: 'SET_CONTEXT_URL'; url: string }
 
 function reducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
@@ -42,6 +44,8 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, feedbackPoints: action.points }
     case 'SET_WELCOME':
       return { ...state, welcomeMessage: action.message }
+    case 'SET_CONTEXT_URL':
+      return { ...state, contextUrl: action.url }
   }
 }
 
@@ -57,6 +61,7 @@ export function LoopicalWizard({ projectId }: LoopicalWizardProps) {
     step: 1,
     title: '',
     media: [],
+    contextUrl: '',
     feedbackMode: 'guided',
     feedbackPoints: [],
     welcomeMessage: '',
@@ -128,6 +133,7 @@ export function LoopicalWizard({ projectId }: LoopicalWizardProps) {
       formData.append('title', state.title)
       formData.append('feedbackMode', state.feedbackMode)
       formData.append('welcomeMessage', state.welcomeMessage)
+      if (state.contextUrl) formData.append('contextUrl', state.contextUrl)
 
       // Add media files
       for (const item of state.media) {
@@ -144,6 +150,7 @@ export function LoopicalWizard({ projectId }: LoopicalWizardProps) {
           markerY: p.markerY ?? null,
           markerMediaIndex: p.markerMediaIndex,
           orderIndex: i,
+          contextUrl: p.contextUrl || null,
         }))
         formData.append('feedbackPoints', JSON.stringify(points))
       }
@@ -173,6 +180,8 @@ export function LoopicalWizard({ projectId }: LoopicalWizardProps) {
           onTitleChange={(t) => dispatch({ type: 'SET_TITLE', title: t })}
           media={state.media}
           onMediaChange={(m) => dispatch({ type: 'SET_MEDIA', media: m })}
+          contextUrl={state.contextUrl}
+          onContextUrlChange={(url) => dispatch({ type: 'SET_CONTEXT_URL', url })}
           onNext={() => goToStep(2)}
         />
       )}
@@ -205,6 +214,7 @@ export function LoopicalWizard({ projectId }: LoopicalWizardProps) {
           mode={state.feedbackMode}
           points={state.feedbackPoints}
           welcomeMessage={state.welcomeMessage}
+          contextUrl={state.contextUrl}
           onWelcomeMessageChange={(m) => dispatch({ type: 'SET_WELCOME', message: m })}
           onBack={handlePreviewBack}
           onSubmit={handleSubmit}

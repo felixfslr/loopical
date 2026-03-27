@@ -13,9 +13,10 @@ import { OptimisticFeedbackCard } from '@/components/optimistic-feedback-card'
 import { EmptyState } from '@/components/empty-state'
 import { StatusSelector } from '@/components/status-selector'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, Sparkles, Loader2, Check, Square } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Sparkles, Loader2, Check, Square, Link2, ExternalLink, Pencil, X as XIcon } from 'lucide-react'
 import { toast } from 'sonner'
-import { toggleActionItem } from '@/app/(authenticated)/projects/[id]/loopicals/[loopicalId]/actions'
+import { toggleActionItem, updateContextUrl } from '@/app/(authenticated)/projects/[id]/loopicals/[loopicalId]/actions'
+import { Input } from '@/components/ui/input'
 import { useMemo } from 'react'
 import type { ActionItem, ProcessingStatus, Sentiment, WordTimestamp, LoopicalStatus } from '@/lib/types/database'
 
@@ -45,6 +46,7 @@ interface FeedbackPointData {
   marker_y: number | null
   marker_media_index: number
   order_index: number
+  context_url: string | null
 }
 
 interface MediaData {
@@ -71,6 +73,7 @@ interface LoopicalDetailViewProps {
     ai_summary: string | null
     ai_action_items: ActionItem[] | null
     ai_summary_updated_at: string | null
+    context_url: string | null
   }
   projectId: string
   authorId: string
@@ -96,6 +99,8 @@ export function LoopicalDetailView({
   const [aiSummary, setAiSummary] = useState(loopical.ai_summary)
   const [aiActionItems, setAiActionItems] = useState<ActionItem[] | null>(loopical.ai_action_items)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+  const [contextUrl, setContextUrl] = useState(loopical.context_url || '')
+  const [isEditingUrl, setIsEditingUrl] = useState(false)
   const [filterSentiment, setFilterSentiment] = useState<Sentiment | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<ProcessingStatus | 'all'>('all')
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
@@ -261,6 +266,74 @@ export function LoopicalDetailView({
             projectId={projectId}
             currentStatus={loopical.status}
           />
+        </div>
+
+        {/* Context URL */}
+        <div className="flex items-center gap-2 text-sm">
+          <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />
+          {isEditingUrl ? (
+            <form
+              className="flex items-center gap-2 flex-1"
+              onSubmit={async (e) => {
+                e.preventDefault()
+                const result = await updateContextUrl(loopical.id, projectId, contextUrl || null)
+                if (result.error) {
+                  toast.error(result.error)
+                  return
+                }
+                setIsEditingUrl(false)
+              }}
+            >
+              <Input
+                type="url"
+                value={contextUrl}
+                onChange={(e) => setContextUrl(e.target.value)}
+                placeholder="https://..."
+                className="h-8 text-sm flex-1"
+                autoFocus
+              />
+              <Button type="submit" variant="outline" size="sm" className="h-8">
+                Speichern
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => {
+                  setContextUrl(loopical.context_url || '')
+                  setIsEditingUrl(false)
+                }}
+              >
+                <XIcon className="h-3.5 w-3.5" />
+              </Button>
+            </form>
+          ) : loopical.context_url ? (
+            <>
+              <a
+                href={loopical.context_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="truncate text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {loopical.context_url}
+              </a>
+              <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+              <button
+                onClick={() => setIsEditingUrl(true)}
+                className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setIsEditingUrl(true)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Live-URL hinzufügen
+            </button>
+          )}
         </div>
 
         {/* AI Summary */}

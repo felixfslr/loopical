@@ -76,6 +76,61 @@ export async function toggleActionItem(
   return { error: null }
 }
 
+export async function updateContextUrl(
+  loopicalId: string,
+  projectId: string,
+  contextUrl: string | null,
+) {
+  await requireUser()
+  const admin = createAdminClient()
+
+  // Validate
+  if (contextUrl && !/^https?:\/\//.test(contextUrl)) {
+    return { error: 'URL muss mit http:// oder https:// beginnen.' }
+  }
+  if (contextUrl && contextUrl.length > 2048) {
+    return { error: 'URL darf maximal 2048 Zeichen lang sein.' }
+  }
+
+  const { error } = await admin
+    .from('loopicals')
+    .update({ context_url: contextUrl || null })
+    .eq('id', loopicalId)
+
+  if (error) {
+    return { error: 'URL konnte nicht aktualisiert werden.' }
+  }
+
+  revalidatePath(`/projects/${projectId}/loopicals/${loopicalId}`)
+  return { error: null }
+}
+
+export async function updateFeedbackPointUrl(
+  pointId: string,
+  projectId: string,
+  loopicalId: string,
+  contextUrl: string | null,
+) {
+  await requireUser()
+  const admin = createAdminClient()
+
+  if (contextUrl && !/^https?:\/\//.test(contextUrl)) {
+    return { error: 'URL muss mit http:// oder https:// beginnen.' }
+  }
+
+  const { error } = await admin
+    .from('feedback_points')
+    .update({ context_url: contextUrl || null })
+    .eq('id', pointId)
+
+  if (error) {
+    return { error: 'URL konnte nicht aktualisiert werden.' }
+  }
+
+  revalidatePath(`/projects/${projectId}/loopicals/${loopicalId}`)
+  return { error: null }
+}
+
 export async function addComment(
   prevState: { error: string | null; success: boolean },
   formData: FormData,

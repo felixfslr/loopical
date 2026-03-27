@@ -158,6 +158,7 @@ export interface Database {
           ai_summary: string | null
           ai_action_items: Json | null
           ai_summary_updated_at: string | null
+          context_url: string | null
         }
         Insert: {
           id?: string
@@ -177,6 +178,7 @@ export interface Database {
           ai_summary?: string | null
           ai_action_items?: Json | null
           ai_summary_updated_at?: string | null
+          context_url?: string | null
         }
         Update: {
           id?: string
@@ -196,6 +198,7 @@ export interface Database {
           ai_summary?: string | null
           ai_action_items?: Json | null
           ai_summary_updated_at?: string | null
+          context_url?: string | null
         }
         Relationships: [
           {
@@ -332,6 +335,7 @@ export interface Database {
           marker_y: number | null
           marker_media_index: number
           order_index: number
+          context_url: string | null
           created_at: string
         }
         Insert: {
@@ -344,6 +348,7 @@ export interface Database {
           marker_y?: number | null
           marker_media_index?: number
           order_index?: number
+          context_url?: string | null
           created_at?: string
         }
         Update: {
@@ -356,6 +361,7 @@ export interface Database {
           marker_y?: number | null
           marker_media_index?: number
           order_index?: number
+          context_url?: string | null
           created_at?: string
         }
         Relationships: [
@@ -437,6 +443,7 @@ export interface Database {
           annotation_y: number | null
           feedback_mode: string
           welcome_message: string | null
+          context_url: string | null
         }[]
       }
       get_feedback_points_by_share_token: {
@@ -450,6 +457,7 @@ export interface Database {
           marker_y: number | null
           marker_media_index: number
           order_index: number
+          context_url: string | null
         }[]
       }
       get_loopical_media_by_share_token: {

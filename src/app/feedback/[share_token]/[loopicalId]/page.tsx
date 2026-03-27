@@ -4,7 +4,7 @@ import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { GuestAnnotatedImage } from '@/components/guest-annotated-image'
 import { GuidedFeedbackFlow } from '@/components/guided-feedback-flow'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function GuestLoopicalFeedbackPage({
@@ -55,6 +55,7 @@ export default async function GuestLoopicalFeedbackPage({
         loopicalId={loopicalId}
         loopicalTitle={loopical.title}
         welcomeMessage={loopical.welcome_message}
+        contextUrl={loopical.context_url}
         feedbackPoints={feedbackPoints ?? []}
         media={loopicalMedia ?? []}
         shareToken={share_token}
@@ -158,7 +159,20 @@ export default async function GuestLoopicalFeedbackPage({
           <ThemeToggle />
         </div>
 
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-sm space-y-4">
+          {loopical.context_url && (
+            <div className="flex justify-center">
+              <a
+                href={loopical.context_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium hover:bg-muted/50 transition-colors"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Live ansehen
+              </a>
+            </div>
+          )}
           <FeedbackSubmitForm
             loopicalId={loopicalId}
             showGuestName
