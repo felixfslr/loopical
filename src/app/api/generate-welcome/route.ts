@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireUser } from '@/lib/auth'
+import { errorResponse } from '@/lib/api-error'
 
 export async function POST(request: Request) {
   try {
@@ -55,10 +56,6 @@ Die Begrüßung soll den Feedback-Geber motivieren und kurz erklären, worauf er
 
     return NextResponse.json({ message: text })
   } catch (err) {
-    console.error('Generate welcome error:', err)
-    return NextResponse.json(
-      { error: 'Begrüßung konnte nicht generiert werden.' },
-      { status: 500 },
-    )
+    return errorResponse(err)
   }
 }

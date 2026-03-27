@@ -21,6 +21,7 @@ import {
   SkipForward,
   AlertCircle,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface FeedbackPoint {
   id: string
@@ -128,6 +129,7 @@ export function GuidedFeedbackFlow({
           return next
         })
       } catch {
+        toast.error('Upload fehlgeschlagen — bitte erneut versuchen.')
         setRecordings((prev) => {
           const next = new Map(prev)
           const existing = next.get(pointId)

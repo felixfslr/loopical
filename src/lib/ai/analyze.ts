@@ -4,15 +4,21 @@ export async function analyzeTranscript(
   transcript: string,
   context: { title: string; description: string | null },
 ): Promise<AnalysisResult> {
-  const response = await fetch(
-    `${process.env.OLLAMA_CLOUD_BASE_URL}/chat/completions`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OLLAMA_CLOUD_API_KEY}`,
-      },
-      body: JSON.stringify({
+  // Ollama Cloud analysis (60s timeout)
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 60_000)
+  let response: Response
+  try {
+    response = await fetch(
+      `${process.env.OLLAMA_CLOUD_BASE_URL}/chat/completions`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.OLLAMA_CLOUD_API_KEY}`,
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
         model: 'kimi-k2.5:cloud',
         messages: [
           {
@@ -57,7 +63,10 @@ ${context.description ? '- Das Feedback bezieht sich auf die oben genannte Frage
         max_tokens: 65536,
       }),
     },
-  )
+    )
+  } finally {
+    clearTimeout(timeout)
+  }
 
   if (!response.ok) {
     const errorText = await response.text()
@@ -74,7 +83,7 @@ ${context.description ? '- Das Feedback bezieht sich auf die oben genannte Frage
   return parseAIResponse(raw)
 }
 
-function parseAIResponse(raw: string): AnalysisResult {
+export function parseAIResponse(raw: string): AnalysisResult {
   // Strip markdown code fences if present
   let cleaned = raw.trim()
   cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '')

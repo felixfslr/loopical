@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Check, AlertCircle } from 'lucide-react'
+import { toast } from 'sonner'
 
 const fadeSlide = {
   initial: { opacity: 0, y: 12 },
@@ -44,6 +45,11 @@ export function FeedbackSubmitForm({
   const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(blob: Blob, durationSeconds: number) {
+    if (blob.size > 25 * 1024 * 1024) {
+      toast.error('Aufnahme ist zu groß (max. 25 MB).')
+      return
+    }
+
     setIsSubmitting(true)
     setError(null)
 
@@ -73,6 +79,7 @@ export function FeedbackSubmitForm({
     } catch (err) {
       console.error('Submit error:', err)
       setError('Feedback konnte nicht gesendet werden.')
+      toast.error('Feedback konnte nicht gesendet werden.')
     } finally {
       setIsSubmitting(false)
     }

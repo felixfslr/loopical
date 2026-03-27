@@ -2,9 +2,18 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { after } from 'next/server'
 import { processFeedbackEntry } from '@/lib/ai/pipeline'
+import { feedbackLimiter } from '@/lib/rate-limit'
+import { ApiError, errorResponse } from '@/lib/api-error'
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+    const { success } = feedbackLimiter.check(ip)
+    if (!success) {
+      throw new ApiError('Zu viele Anfragen. Bitte warte einen Moment.', 429, 'RATE_LIMITED')
+    }
+
     const formData = await request.formData()
     const audio = formData.get('audio') as File
     const loopicalId = formData.get('loopicalId') as string
@@ -17,10 +26,7 @@ export async function POST(request: Request) {
     )
 
     if (!audio || !loopicalId) {
-      return NextResponse.json(
-        { error: 'Audio und Loopical-ID sind erforderlich.' },
-        { status: 400 },
-      )
+      throw new ApiError('Audio und Loopical-ID sind erforderlich.', 400, 'MISSING_PARAMS')
     }
 
     const admin = createAdminClient()
@@ -39,10 +45,7 @@ export async function POST(request: Request) {
 
     if (uploadError) {
       console.error('Upload error:', uploadError)
-      return NextResponse.json(
-        { error: 'Audio konnte nicht hochgeladen werden.' },
-        { status: 500 },
-      )
+      throw new ApiError('Audio konnte nicht hochgeladen werden.', 500, 'UPLOAD_FAILED')
     }
 
     const {
@@ -66,10 +69,7 @@ export async function POST(request: Request) {
 
     if (insertError) {
       console.error('Insert error:', insertError)
-      return NextResponse.json(
-        { error: 'Feedback konnte nicht erstellt werden.' },
-        { status: 500 },
-      )
+      throw new ApiError('Feedback konnte nicht erstellt werden.', 500, 'INSERT_FAILED')
     }
 
     // Trigger AI processing after response is sent
@@ -83,10 +83,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ id: entry.id })
   } catch (err) {
-    console.error('Feedback API error:', err)
-    return NextResponse.json(
-      { error: 'Interner Serverfehler.' },
-      { status: 500 },
-    )
+    return errorResponse(err)
   }
 }

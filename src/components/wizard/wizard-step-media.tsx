@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Upload, X, GripVertical, ArrowRight } from 'lucide-react'
+import { toast } from 'sonner'
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf']
 
 export interface MediaItem {
   id: string
@@ -33,8 +37,21 @@ export function WizardStepMedia({
   const dragOverItem = useRef<number | null>(null)
 
   function handleFiles(files: FileList | File[]) {
-    const accepted = Array.from(files).filter(
-      (f) => f.type.startsWith('image/') || f.type === 'application/pdf',
+    const all = Array.from(files)
+    const rejected = all.filter(
+      (f) => !ALLOWED_TYPES.includes(f.type) && !f.type.startsWith('image/'),
+    )
+    const tooLarge = all.filter((f) => f.size > MAX_FILE_SIZE)
+    if (rejected.length > 0) {
+      toast.error('Nur Bilder und PDFs sind erlaubt.')
+    }
+    if (tooLarge.length > 0) {
+      toast.error(`Dateien dürfen maximal 10 MB groß sein.`)
+    }
+    const accepted = all.filter(
+      (f) =>
+        (f.type.startsWith('image/') || f.type === 'application/pdf') &&
+        f.size <= MAX_FILE_SIZE,
     )
     if (accepted.length === 0) return
 

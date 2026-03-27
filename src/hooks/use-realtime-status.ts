@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import type { ProcessingStatus } from '@/lib/types/database'
 
 interface UseRealtimeStatusOptions {
@@ -13,38 +14,37 @@ export function useRealtimeStatus(
   options?: UseRealtimeStatusOptions,
 ) {
   const [status, setStatus] = useState<ProcessingStatus>(initialStatus)
-
-  const poll = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/feedback-status?id=${entryId}`)
-      if (res.ok) {
-        const data = await res.json()
-        if (data.status) {
-          setStatus(data.status)
-          return data.status
-        }
-      }
-    } catch {
-      // ignore polling errors
-    }
-    return null
-  }, [entryId])
+  const onCompleteRef = useRef(options?.onComplete)
+  onCompleteRef.current = options?.onComplete
 
   useEffect(() => {
     if (initialStatus === 'complete' || initialStatus === 'error') return
 
-    const interval = setInterval(async () => {
-      const newStatus = await poll()
-      if (newStatus === 'complete' || newStatus === 'error') {
-        clearInterval(interval)
-        if (newStatus === 'complete') {
-          options?.onComplete?.()
-        }
-      }
-    }, 2000)
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`feedback-entry-${entryId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'feedback_entries',
+          filter: `id=eq.${entryId}`,
+        },
+        (payload) => {
+          const newStatus = (payload.new as any).processing_status as ProcessingStatus
+          setStatus(newStatus)
+          if (newStatus === 'complete') {
+            onCompleteRef.current?.()
+          }
+        },
+      )
+      .subscribe()
 
-    return () => clearInterval(interval)
-  }, [entryId, initialStatus, poll, options])
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [entryId, initialStatus])
 
   return status
 }

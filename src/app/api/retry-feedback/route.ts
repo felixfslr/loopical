@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { processFeedbackEntry } from '@/lib/ai/pipeline'
+import { ApiError, errorResponse } from '@/lib/api-error'
 
 export async function POST(request: Request) {
   try {
     const { entryId } = await request.json()
 
     if (!entryId) {
-      return NextResponse.json({ error: 'entryId required' }, { status: 400 })
+      throw new ApiError('entryId required', 400, 'MISSING_PARAMS')
     }
 
     const admin = createAdminClient()
@@ -23,10 +24,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error('Retry error:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 },
-    )
+    return errorResponse(err)
   }
 }

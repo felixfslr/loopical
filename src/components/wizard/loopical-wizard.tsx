@@ -8,6 +8,7 @@ import { WizardStepMode } from './wizard-step-mode'
 import { WizardStepPoints, type FeedbackPointDraft } from './wizard-step-points'
 import { WizardStepPreview } from './wizard-step-preview'
 import { createLoopicalWizard } from '@/app/(authenticated)/projects/[id]/loopicals/new/actions'
+import { toast } from 'sonner'
 import type { FeedbackMode } from '@/lib/types/database'
 
 interface WizardState {
@@ -149,8 +150,7 @@ export function LoopicalWizard({ projectId }: LoopicalWizardProps) {
 
       const result = await createLoopicalWizard(formData)
       if (result.error) {
-        // TODO: show error toast
-        console.error(result.error)
+        toast.error(result.error)
         return
       }
 

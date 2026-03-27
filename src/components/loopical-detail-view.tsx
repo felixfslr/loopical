@@ -1,18 +1,22 @@
 'use client'
 
 import { useState, useCallback, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { AnimatePresence } from 'framer-motion'
 import { AnnotatedImage } from '@/components/annotated-image'
 import { FeedbackPointGroup } from '@/components/feedback-point-group'
 import { FeedbackDetail } from '@/components/feedback-detail'
+import { FeedbackFilters } from '@/components/feedback-filters'
 import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
 import { OptimisticFeedbackCard } from '@/components/optimistic-feedback-card'
 import { EmptyState } from '@/components/empty-state'
 import { StatusSelector } from '@/components/status-selector'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, Sparkles, Loader2, Check, Square } from 'lucide-react'
+import { toast } from 'sonner'
 import { toggleActionItem } from '@/app/(authenticated)/projects/[id]/loopicals/[loopicalId]/actions'
+import { useMemo } from 'react'
 import type { ActionItem, ProcessingStatus, Sentiment, WordTimestamp, LoopicalStatus } from '@/lib/types/database'
 
 interface Entry {
@@ -50,6 +54,12 @@ interface MediaData {
   order_index: number
 }
 
+interface PaginationData {
+  page: number
+  pageSize: number
+  totalCount: number
+}
+
 interface LoopicalDetailViewProps {
   loopical: {
     id: string
@@ -67,6 +77,7 @@ interface LoopicalDetailViewProps {
   entries: Entry[]
   feedbackPoints: FeedbackPointData[]
   mediaItems: MediaData[]
+  pagination?: PaginationData
 }
 
 export function LoopicalDetailView({
@@ -76,6 +87,7 @@ export function LoopicalDetailView({
   entries,
   feedbackPoints,
   mediaItems,
+  pagination,
 }: LoopicalDetailViewProps) {
   const router = useRouter()
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
@@ -84,6 +96,9 @@ export function LoopicalDetailView({
   const [aiSummary, setAiSummary] = useState(loopical.ai_summary)
   const [aiActionItems, setAiActionItems] = useState<ActionItem[] | null>(loopical.ai_action_items)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+  const [filterSentiment, setFilterSentiment] = useState<Sentiment | 'all'>('all')
+  const [filterStatus, setFilterStatus] = useState<ProcessingStatus | 'all'>('all')
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
 
   const isGuided = loopical.feedback_mode === 'guided' && feedbackPoints.length > 0
   const hasMultipleMedia = mediaItems.length > 1
@@ -106,11 +121,26 @@ export function LoopicalDetailView({
         }))
     : []
 
-  // Group entries by feedback point
+  // Filter and sort entries
+  const filteredEntries = useMemo(() => {
+    let result = entries
+      .filter((e) => filterSentiment === 'all' || e.sentiment === filterSentiment)
+      .filter((e) => filterStatus === 'all' || e.processing_status === filterStatus)
+
+    result.sort((a, b) => {
+      const ta = new Date(a.created_at).getTime()
+      const tb = new Date(b.created_at).getTime()
+      return sortOrder === 'newest' ? tb - ta : ta - tb
+    })
+
+    return result
+  }, [entries, filterSentiment, filterStatus, sortOrder])
+
+  // Group filtered entries by feedback point
   const entriesByPoint = new Map<string, Entry[]>()
   const ungroupedEntries: Entry[] = []
 
-  for (const entry of entries) {
+  for (const entry of filteredEntries) {
     if (entry.feedback_point_id) {
       const existing = entriesByPoint.get(entry.feedback_point_id) ?? []
       existing.push(entry)
@@ -130,6 +160,7 @@ export function LoopicalDetailView({
       setAiActionItems(data.actionItems ?? null)
     } catch (err) {
       console.error('Summary generation failed:', err)
+      toast.error('Zusammenfassung konnte nicht generiert werden.')
     } finally {
       setIsGeneratingSummary(false)
     }
@@ -300,6 +331,18 @@ export function LoopicalDetailView({
             <h2 className="text-lg font-semibold">
               Feedback nach Punkten ({totalCount})
             </h2>
+            {entries.length > 0 && (
+              <FeedbackFilters
+                totalCount={entries.length}
+                filteredCount={filteredEntries.length}
+                filterSentiment={filterSentiment}
+                onFilterSentimentChange={setFilterSentiment}
+                filterStatus={filterStatus}
+                onFilterStatusChange={setFilterStatus}
+                sortOrder={sortOrder}
+                onSortOrderChange={setSortOrder}
+              />
+            )}
             {feedbackPoints.map((point, idx) => (
               <FeedbackPointGroup
                 key={point.id}
@@ -334,6 +377,18 @@ export function LoopicalDetailView({
             <h2 className="text-lg font-semibold">
               Feedback ({totalCount})
             </h2>
+            {entries.length > 0 && (
+              <FeedbackFilters
+                totalCount={entries.length}
+                filteredCount={filteredEntries.length}
+                filterSentiment={filterSentiment}
+                onFilterSentimentChange={setFilterSentiment}
+                filterStatus={filterStatus}
+                onFilterStatusChange={setFilterStatus}
+                sortOrder={sortOrder}
+                onSortOrderChange={setSortOrder}
+              />
+            )}
 
             {/* Optimistic Cards */}
             <AnimatePresence>
@@ -351,8 +406,12 @@ export function LoopicalDetailView({
                 title="Noch kein Feedback"
                 description="Nimm das erste Voice-Feedback auf oder teile den Link mit deinem Team."
               />
+            ) : filteredEntries.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Keine Einträge für diesen Filter.
+              </p>
             ) : (
-              entries.map((entry) => (
+              filteredEntries.map((entry) => (
                 <FeedbackDetail
                   key={entry.id}
                   entry={entry}
@@ -376,6 +435,15 @@ export function LoopicalDetailView({
           </AnimatePresence>
         )}
 
+        {/* Pagination */}
+        {pagination && pagination.totalCount > pagination.pageSize && (
+          <PaginationBar
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalCount={pagination.totalCount}
+          />
+        )}
+
         {/* Record section */}
         <div className="border-t pt-6">
           <h2 className="text-lg font-semibold mb-4">Feedback aufnehmen</h2>
@@ -385,6 +453,41 @@ export function LoopicalDetailView({
             onNewEntry={handleNewEntry}
           />
         </div>
+      </div>
+    </div>
+  )
+}
+
+function PaginationBar({
+  page,
+  pageSize,
+  totalCount,
+}: {
+  page: number
+  pageSize: number
+  totalCount: number
+}) {
+  const pathname = usePathname()
+  const totalPages = Math.ceil(totalCount / pageSize)
+
+  return (
+    <div className="flex items-center justify-between py-4">
+      <span className="text-sm text-muted-foreground">
+        Seite {page} von {totalPages}
+      </span>
+      <div className="flex gap-2">
+        {page > 1 && (
+          <Button variant="outline" size="sm" render={<Link href={`${pathname}?page=${page - 1}`} />}>
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Zurück
+          </Button>
+        )}
+        {page < totalPages && (
+          <Button variant="outline" size="sm" render={<Link href={`${pathname}?page=${page + 1}`} />}>
+            Weiter
+            <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   )

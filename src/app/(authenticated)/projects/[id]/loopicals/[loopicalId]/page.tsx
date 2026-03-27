@@ -6,12 +6,20 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import type { LoopicalStatus } from '@/lib/types/database'
 
+const PAGE_SIZE = 20
+
 export default async function LoopicalDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; loopicalId: string }>
+  searchParams: Promise<{ page?: string }>
 }) {
   const { id, loopicalId } = await params
+  const { page: pageStr } = await searchParams
+  const page = Math.max(1, parseInt(pageStr ?? '1', 10))
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
   const user = await requireUser()
   const supabase = createAdminClient()
 
@@ -26,7 +34,7 @@ export default async function LoopicalDetailPage({
   }
 
   const [
-    { data: feedbackEntries },
+    { data: feedbackEntries, count: totalCount },
     { data: project },
     { data: feedbackPoints },
     { data: loopicalMedia },
@@ -36,9 +44,10 @@ export default async function LoopicalDetailPage({
       .select(`
         *,
         profiles:author_id(full_name)
-      `)
+      `, { count: 'exact' })
       .eq('loopical_id', loopicalId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .range(from, to),
     supabase
       .from('projects')
       .select('name')
@@ -110,6 +119,11 @@ export default async function LoopicalDetailPage({
           media_type: m.media_type,
           order_index: m.order_index ?? 0,
         }))}
+        pagination={{
+          page,
+          pageSize: PAGE_SIZE,
+          totalCount: totalCount ?? 0,
+        }}
       />
     </div>
   )

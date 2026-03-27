@@ -1,19 +1,25 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireUser } from '@/lib/auth'
+import { questionAudioLimiter } from '@/lib/rate-limit'
+import { ApiError, errorResponse } from '@/lib/api-error'
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+    const { success } = questionAudioLimiter.check(ip)
+    if (!success) {
+      throw new ApiError('Zu viele Anfragen. Bitte warte einen Moment.', 429, 'RATE_LIMITED')
+    }
+
     await requireUser()
 
     const formData = await request.formData()
     const audio = formData.get('audio') as File
 
     if (!audio) {
-      return NextResponse.json(
-        { error: 'Audio ist erforderlich.' },
-        { status: 400 },
-      )
+      throw new ApiError('Audio ist erforderlich.', 400, 'MISSING_PARAMS')
     }
 
     const admin = createAdminClient()
@@ -31,10 +37,7 @@ export async function POST(request: Request) {
 
     if (uploadError) {
       console.error('Upload error:', uploadError)
-      return NextResponse.json(
-        { error: 'Audio konnte nicht hochgeladen werden.' },
-        { status: 500 },
-      )
+      throw new ApiError('Audio konnte nicht hochgeladen werden.', 500, 'UPLOAD_FAILED')
     }
 
     const {
@@ -48,16 +51,24 @@ export async function POST(request: Request) {
       transcribeForm.append('file', new Blob([audioBuffer], { type: 'audio/webm' }), 'question.webm')
       transcribeForm.append('model_id', 'scribe_v2')
 
-      const response = await fetch(
-        'https://api.elevenlabs.io/v1/speech-to-text',
-        {
-          method: 'POST',
-          headers: {
-            'xi-api-key': process.env.ELEVENLABS_API_KEY!,
+      const transcribeController = new AbortController()
+      const transcribeTimeout = setTimeout(() => transcribeController.abort(), 30_000)
+      let response: Response
+      try {
+        response = await fetch(
+          'https://api.elevenlabs.io/v1/speech-to-text',
+          {
+            method: 'POST',
+            headers: {
+              'xi-api-key': process.env.ELEVENLABS_API_KEY!,
+            },
+            body: transcribeForm,
+            signal: transcribeController.signal,
           },
-          body: transcribeForm,
-        },
-      )
+        )
+      } finally {
+        clearTimeout(transcribeTimeout)
+      }
 
       if (response.ok) {
         const result = await response.json()
@@ -74,10 +85,6 @@ export async function POST(request: Request) {
       transcript,
     })
   } catch (err) {
-    console.error('Question audio API error:', err)
-    return NextResponse.json(
-      { error: 'Interner Serverfehler.' },
-      { status: 500 },
-    )
+    return errorResponse(err)
   }
 }
