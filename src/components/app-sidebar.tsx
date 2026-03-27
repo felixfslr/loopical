@@ -106,7 +106,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
             </div>
             <ThemeToggle />
             <form action={signOut}>
-              <Button variant="ghost" size="icon-sm" title="Abmelden">
+              <Button type="submit" variant="ghost" size="icon-sm" title="Abmelden">
                 <LogOut className="h-4 w-4" />
               </Button>
             </form>

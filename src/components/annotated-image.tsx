@@ -159,6 +159,14 @@ export function AnnotatedImage({
                     ? { repeat: Infinity, duration: 1.5, ease: 'easeInOut' }
                     : undefined
                 }
+                ref={(el) => {
+                  if (isActive && el) {
+                    // Delay slightly to let layout settle after image/animation change
+                    requestAnimationFrame(() => {
+                      el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+                    })
+                  }
+                }}
                 onClick={(e) => {
                   e.stopPropagation()
                   onMarkerClick?.(marker.id)
