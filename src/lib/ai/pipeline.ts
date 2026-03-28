@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { transcribeAudio } from './transcribe'
 import { analyzeTranscript } from './analyze'
-import type { ProcessingStatus, Json } from '@/lib/types/database'
+import type { Annotation, ProcessingStatus, Json } from '@/lib/types/database'
 
 async function updateStatus(
   entryId: string,
@@ -25,7 +25,7 @@ export async function processFeedbackEntry(entryId: string) {
   // Fetch the entry and its loopical context
   const { data: entry } = await admin
     .from('feedback_entries')
-    .select('audio_url, loopical_id, feedback_point_id')
+    .select('audio_url, loopical_id, feedback_point_id, annotations')
     .eq('id', entryId)
     .single()
 
@@ -96,6 +96,7 @@ export async function processFeedbackEntry(entryId: string) {
       const analysis = await analyzeTranscript(cleanTranscript, {
         title: loopical?.title ?? '',
         description,
+        annotations: (entry.annotations as Annotation[] | null) ?? undefined,
       })
 
       // Step 3: Save results and mark complete

@@ -76,6 +76,7 @@ export default async function LoopicalDetailPage({
     action_items: entry.action_items as any,
     tags: entry.tags as any,
     feedback_point_id: entry.feedback_point_id as string | null,
+    annotations: entry.annotations as any,
   }))
 
   return (

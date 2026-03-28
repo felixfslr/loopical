@@ -8,6 +8,7 @@ interface UseMediaRecorderReturn {
   duration: number
   audioBlob: Blob | null
   analyserNode: AnalyserNode | null
+  recordingStartMs: number | null
   startRecording: () => Promise<void>
   stopRecording: () => void
   resetRecording: () => void
@@ -23,6 +24,7 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [recordingStartMs, setRecordingStartMs] = useState<number | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -107,9 +109,11 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
       }
 
       mediaRecorder.start(250) // collect data every 250ms
+      const now = Date.now()
       setIsRecording(true)
       setDuration(0)
-      startTimeRef.current = Date.now()
+      startTimeRef.current = now
+      setRecordingStartMs(now)
 
       // Timer
       timerRef.current = setInterval(() => {
@@ -149,6 +153,7 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
     duration,
     audioBlob,
     analyserNode,
+    recordingStartMs,
     startRecording,
     stopRecording,
     resetRecording,

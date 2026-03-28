@@ -1,11 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
-import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { GuestAnnotatedImage } from '@/components/guest-annotated-image'
 import { GuidedFeedbackFlow } from '@/components/guided-feedback-flow'
-import { ArrowLeft, ExternalLink } from 'lucide-react'
-import Link from 'next/link'
+import { OpenFeedbackFlow } from '@/components/open-feedback-flow'
 
 export default async function GuestLoopicalFeedbackPage({
   params,
@@ -63,13 +59,16 @@ export default async function GuestLoopicalFeedbackPage({
     )
   }
 
-  // Open mode: existing behavior
-  // Get all loopicals for annotation markers
-  const { data: allLoopicals } = await admin.rpc('get_loopicals_by_share_token', {
-    token: share_token,
-  })
+  // Open mode: load markers and media
+  const [{ data: allLoopicals }, { data: loopicalMedia }] = await Promise.all([
+    admin.rpc('get_loopicals_by_share_token', { token: share_token }),
+    admin.rpc('get_loopical_media_by_share_token', {
+      token: share_token,
+      p_loopical_id: loopicalId,
+    }),
+  ])
 
-  const markers = (allLoopicals ?? [])
+  const existingMarkers = (allLoopicals ?? [])
     .filter((l: any) => l.annotation_x != null && l.annotation_y != null)
     .map((l: any) => ({
       id: l.id,
@@ -78,114 +77,17 @@ export default async function GuestLoopicalFeedbackPage({
       y: l.annotation_y,
     }))
 
-  // For open mode with multiple media, get the media items
-  const { data: loopicalMedia } = await admin.rpc('get_loopical_media_by_share_token', {
-    token: share_token,
-    p_loopical_id: loopicalId,
-  })
-
-  // Use first media from loopical_media table, fallback to legacy media_url
   const displayMediaUrl = loopicalMedia?.[0]?.media_url ?? loopical.media_url
 
   return (
-    <div className="min-h-dvh flex flex-col lg:grid lg:grid-cols-2">
-      {/* Navigation bar (mobile only) */}
-      <div className="flex items-center justify-between p-4 border-b lg:hidden">
-        <Link
-          href={`/feedback/${share_token}`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Zurück
-        </Link>
-        <h1 className="text-sm font-medium truncate mx-4">{loopical.title}</h1>
-        <ThemeToggle />
-      </div>
-
-      {/* Document/Image panel — sticky on desktop */}
-      <div className="bg-muted/30 order-1 lg:order-2 lg:sticky lg:top-0 lg:self-start lg:max-h-dvh lg:overflow-y-auto">
-        {/* Title bar (desktop only) */}
-        <div className="hidden lg:block p-6 border-b">
-          <h1 className="text-lg font-bold tracking-tight">
-            {loopical.title}
-          </h1>
-          {loopical.description && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {loopical.description}
-            </p>
-          )}
-        </div>
-
-        {/* Image area */}
-        <div className="flex items-center justify-center p-4 lg:p-6 lg:flex-1">
-          {displayMediaUrl ? (
-            <GuestAnnotatedImage
-              src={displayMediaUrl}
-              alt={loopical.title}
-              markers={markers}
-              activeMarkerId={loopicalId}
-              shareToken={share_token}
-            />
-          ) : (
-            <div className="py-8">
-              <p className="text-muted-foreground text-sm">
-                Kein Dokument vorhanden
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Description (mobile) */}
-        {loopical.description && (
-          <div className="px-4 pb-4 lg:hidden">
-            <p className="text-sm text-muted-foreground">
-              {loopical.description}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Recording panel */}
-      <div className="relative flex-1 flex flex-col items-center justify-center p-6 lg:p-8 order-2 lg:order-1 bg-gradient-to-b from-muted/50 to-background">
-        {/* Desktop nav */}
-        <Link
-          href={`/feedback/${share_token}`}
-          className="hidden lg:inline-flex absolute top-4 left-4 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Zurück
-        </Link>
-        <div className="hidden lg:block absolute top-4 right-4">
-          <ThemeToggle />
-        </div>
-
-        <div className="w-full max-w-sm space-y-4">
-          {loopical.context_url && (
-            <div className="flex justify-center">
-              <a
-                href={loopical.context_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium hover:bg-muted/50 transition-colors"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Live ansehen
-              </a>
-            </div>
-          )}
-          <FeedbackSubmitForm
-            loopicalId={loopicalId}
-            showGuestName
-            variant="standalone"
-          />
-        </div>
-
-        {/* Footer */}
-        <p className="mt-8 lg:absolute lg:bottom-4 text-xs text-muted-foreground">
-          Powered by{' '}
-          <span className="font-medium text-foreground">Loopical</span>
-        </p>
-      </div>
-    </div>
+    <OpenFeedbackFlow
+      loopicalId={loopicalId}
+      loopicalTitle={loopical.title}
+      loopicalDescription={loopical.description}
+      contextUrl={loopical.context_url}
+      displayMediaUrl={displayMediaUrl}
+      existingMarkers={existingMarkers}
+      shareToken={share_token}
+    />
   )
 }

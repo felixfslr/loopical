@@ -29,6 +29,28 @@ export interface WordTimestamp {
   end: number
 }
 
+export interface AnnotationPin {
+  type: 'pin'
+  id: string
+  x: number
+  y: number
+  label: string
+  timestamp_ms: number
+  media_index: number
+}
+
+export interface AnnotationStroke {
+  type: 'stroke'
+  id: string
+  points: { x: number; y: number }[]
+  color: string
+  width: number
+  timestamp_ms: number
+  media_index: number
+}
+
+export type Annotation = AnnotationPin | AnnotationStroke
+
 export interface ActionItem {
   text: string
   done: boolean
@@ -234,6 +256,7 @@ export interface Database {
           author_id: string | null
           guest_name: string | null
           feedback_point_id: string | null
+          annotations: Json | null
           created_at: string
         }
         Insert: {
@@ -252,6 +275,7 @@ export interface Database {
           author_id?: string | null
           guest_name?: string | null
           feedback_point_id?: string | null
+          annotations?: Json | null
           created_at?: string
         }
         Update: {
@@ -270,6 +294,7 @@ export interface Database {
           author_id?: string | null
           guest_name?: string | null
           feedback_point_id?: string | null
+          annotations?: Json | null
           created_at?: string
         }
         Relationships: [

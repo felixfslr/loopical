@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Check, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import type { Annotation } from '@/lib/types/database'
 
 const fadeSlide = {
   initial: { opacity: 0, y: 12 },
@@ -26,6 +27,14 @@ interface FeedbackSubmitFormProps {
   variant?: 'card' | 'standalone'
   onNewEntry?: (entryId: string) => void
   onSuccess?: () => void
+  /** Guest annotations (pins + strokes) to submit alongside audio */
+  annotations?: Annotation[]
+  /** Callback when recording state changes (isRecording, startMs) */
+  onRecordingStateChange?: (isRecording: boolean, startMs: number | null) => void
+  /** Callback when entering/leaving preview state (after recording, before submit) */
+  onPreviewStateChange?: (isPreview: boolean) => void
+  /** Callback when re-recording (to clear recording-time annotations) */
+  onReRecord?: () => void
 }
 
 export function FeedbackSubmitForm({
@@ -36,6 +45,10 @@ export function FeedbackSubmitForm({
   variant = 'card',
   onNewEntry,
   onSuccess,
+  annotations,
+  onRecordingStateChange,
+  onPreviewStateChange,
+  onReRecord,
 }: FeedbackSubmitFormProps) {
   const router = useRouter()
   const [guestName, setGuestName] = useState('')
@@ -61,6 +74,9 @@ export function FeedbackSubmitForm({
       if (authorId) formData.append('authorId', authorId)
       if (feedbackPointId) formData.append('feedbackPointId', feedbackPointId)
       if (guestName) formData.append('guestName', guestName)
+      if (annotations && annotations.length > 0) {
+        formData.append('annotations', JSON.stringify(annotations))
+      }
 
       const response = await fetch('/api/feedback', {
         method: 'POST',
@@ -151,7 +167,14 @@ export function FeedbackSubmitForm({
                 />
               </div>
             )}
-            <VoiceRecorder onSubmit={handleSubmit} isSubmitting={isSubmitting} variant={variant} />
+            <VoiceRecorder
+              onSubmit={handleSubmit}
+              isSubmitting={isSubmitting}
+              variant={variant}
+              onRecordingStateChange={onRecordingStateChange}
+              onPreviewStateChange={onPreviewStateChange}
+              onReRecord={onReRecord}
+            />
           </motion.div>
         )}
       </AnimatePresence>

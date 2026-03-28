@@ -18,7 +18,9 @@ import { toast } from 'sonner'
 import { toggleActionItem, updateContextUrl } from '@/app/(authenticated)/projects/[id]/loopicals/[loopicalId]/actions'
 import { Input } from '@/components/ui/input'
 import { useMemo } from 'react'
-import type { ActionItem, ProcessingStatus, Sentiment, WordTimestamp, LoopicalStatus } from '@/lib/types/database'
+import { AnnotationPlayback } from '@/components/annotation-playback'
+import type { ImageBounds, Marker } from '@/components/annotated-image'
+import type { ActionItem, Annotation, ProcessingStatus, Sentiment, WordTimestamp, LoopicalStatus } from '@/lib/types/database'
 
 interface Entry {
   id: string
@@ -35,6 +37,7 @@ interface Entry {
   author_name: string | null
   created_at: string
   feedback_point_id: string | null
+  annotations: Annotation[] | null
 }
 
 interface FeedbackPointData {
@@ -104,6 +107,24 @@ export function LoopicalDetailView({
   const [filterSentiment, setFilterSentiment] = useState<Sentiment | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<ProcessingStatus | 'all'>('all')
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
+  const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null)
+
+  const focusedEntry = focusedEntryId
+    ? entries.find((e) => e.id === focusedEntryId)
+    : null
+  const focusedAnnotations: Annotation[] = (focusedEntry?.annotations as Annotation[] | null) ?? []
+
+  // Build guest pin markers for focused entry (orange-styled)
+  const guestPinMarkers: Marker[] = focusedAnnotations
+    .filter((a): a is Extract<Annotation, { type: 'pin' }> =>
+      a.type === 'pin' && a.media_index === currentMediaIndex,
+    )
+    .map((pin) => ({
+      id: `guest-${pin.id}`,
+      label: pin.label,
+      x: pin.x,
+      y: pin.y,
+    }))
 
   const isGuided = loopical.feedback_mode === 'guided' && feedbackPoints.length > 0
   const hasMultipleMedia = mediaItems.length > 1
@@ -205,8 +226,18 @@ export function LoopicalDetailView({
             <AnnotatedImage
               src={displayMediaUrl}
               alt={loopical.title}
-              markers={markersForImage}
+              markers={[...markersForImage, ...guestPinMarkers]}
               onMarkerClick={handleMarkerClick}
+              renderOverlay={focusedAnnotations.length > 0
+                ? (bounds: ImageBounds) => (
+                    <AnnotationPlayback
+                      bounds={bounds}
+                      annotations={focusedAnnotations}
+                      mediaIndex={currentMediaIndex}
+                    />
+                  )
+                : undefined
+              }
             />
 
             {/* Media navigation */}
@@ -437,6 +468,8 @@ export function LoopicalDetailView({
                     key={entry.id}
                     entry={entry}
                     onToggleActionItem={handleToggle}
+                    onFocus={setFocusedEntryId}
+                    isFocused={focusedEntryId === entry.id}
                   />
                 ))}
               </div>
@@ -489,6 +522,8 @@ export function LoopicalDetailView({
                   key={entry.id}
                   entry={entry}
                   onToggleActionItem={handleToggle}
+                  onFocus={setFocusedEntryId}
+                  isFocused={focusedEntryId === entry.id}
                 />
               ))
             )}

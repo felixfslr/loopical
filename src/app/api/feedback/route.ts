@@ -4,6 +4,7 @@ import { after } from 'next/server'
 import { processFeedbackEntry } from '@/lib/ai/pipeline'
 import { feedbackLimiter } from '@/lib/rate-limit'
 import { ApiError, errorResponse } from '@/lib/api-error'
+import type { Json } from '@/lib/types/database'
 
 export async function POST(request: Request) {
   try {
@@ -20,10 +21,22 @@ export async function POST(request: Request) {
     const authorId = formData.get('authorId') as string | null
     const guestName = formData.get('guestName') as string | null
     const feedbackPointId = formData.get('feedbackPointId') as string | null
+    const annotationsRaw = formData.get('annotations') as string | null
     const durationSeconds = parseInt(
       formData.get('durationSeconds') as string,
       10,
     )
+
+    // Parse guest annotations (pins + strokes)
+    let annotations: Json[] = []
+    if (annotationsRaw) {
+      try {
+        const parsed = JSON.parse(annotationsRaw)
+        if (Array.isArray(parsed)) annotations = parsed as Json[]
+      } catch {
+        // Ignore malformed annotations, proceed without them
+      }
+    }
 
     if (!audio || !loopicalId) {
       throw new ApiError('Audio und Loopical-ID sind erforderlich.', 400, 'MISSING_PARAMS')
@@ -63,6 +76,7 @@ export async function POST(request: Request) {
         author_id: authorId || null,
         guest_name: guestName || null,
         feedback_point_id: feedbackPointId || null,
+        annotations: annotations.length > 0 ? annotations : null,
       })
       .select('id')
       .single()

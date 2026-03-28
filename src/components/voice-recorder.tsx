@@ -12,19 +12,50 @@ interface VoiceRecorderProps {
   onSubmit: (blob: Blob, durationSeconds: number) => void
   isSubmitting?: boolean
   variant?: 'card' | 'standalone'
+  onRecordingStateChange?: (isRecording: boolean, startMs: number | null) => void
+  onPreviewStateChange?: (isPreview: boolean) => void
+  onReRecord?: () => void
 }
 
-export function VoiceRecorder({ onSubmit, isSubmitting, variant = 'card' }: VoiceRecorderProps) {
+export function VoiceRecorder({
+  onSubmit,
+  isSubmitting,
+  variant = 'card',
+  onRecordingStateChange,
+  onPreviewStateChange,
+  onReRecord,
+}: VoiceRecorderProps) {
   const {
     isRecording,
     duration,
     audioBlob,
     analyserNode,
-    startRecording,
+    recordingStartMs,
+    startRecording: startRecordingRaw,
     stopRecording,
-    resetRecording,
+    resetRecording: resetRecordingRaw,
     error,
   } = useMediaRecorder()
+
+  const startRecording = async () => {
+    await startRecordingRaw()
+    // recordingStartMs is set inside startRecordingRaw via setState,
+    // so we use Date.now() here as an approximation
+    onRecordingStateChange?.(true, Date.now())
+  }
+
+  const handleStopRecording = () => {
+    stopRecording()
+    onRecordingStateChange?.(false, null)
+    onPreviewStateChange?.(true)
+  }
+
+  const resetRecording = () => {
+    onReRecord?.()
+    onPreviewStateChange?.(false)
+    resetRecordingRaw()
+    onRecordingStateChange?.(false, null)
+  }
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -169,7 +200,7 @@ export function VoiceRecorder({ onSubmit, isSubmitting, variant = 'card' }: Voic
           )}
 
           <button
-            onClick={isRecording ? stopRecording : startRecording}
+            onClick={isRecording ? handleStopRecording : startRecording}
             className={`flex h-16 w-16 items-center justify-center rounded-full transition-all ${
               isRecording
                 ? 'bg-red-600 animate-pulse-record'

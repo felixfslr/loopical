@@ -1,8 +1,9 @@
+import type { Annotation } from '@/lib/types/database'
 import type { AnalysisResult } from './types'
 
 export async function analyzeTranscript(
   transcript: string,
-  context: { title: string; description: string | null },
+  context: { title: string; description: string | null; annotations?: Annotation[] | null },
 ): Promise<AnalysisResult> {
   // Ollama Cloud analysis (60s timeout)
   const controller = new AbortController()
@@ -32,6 +33,7 @@ export async function analyzeTranscript(
 
 Kontext des Feedback-Punkts: "${context.title}"
 ${context.description ? `Beschreibung / Frage: "${context.description}"` : ''}
+${context.annotations && context.annotations.filter((a) => a.type === 'pin').length > 0 ? `\nDer Feedback-Geber hat ${context.annotations.filter((a) => a.type === 'pin').length} Markierungen auf dem Bild gesetzt (Marker ${context.annotations.filter((a) => a.type === 'pin').map((a) => a.type === 'pin' ? a.label : '').filter(Boolean).join(', ')}). Wenn der Feedback-Geber über markierte Stellen spricht, referenziere die Marker-Nummern in deiner Zusammenfassung (z.B. "Bei Marker 2...").` : ''}
 
 Transkript des Voice-Feedbacks:
 """

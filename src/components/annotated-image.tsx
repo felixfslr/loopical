@@ -1,21 +1,26 @@
 'use client'
 
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
-interface Marker {
+export interface Marker {
   id: string
   label: string
   x: number // percentage 0-100 relative to image content
   y: number // percentage 0-100 relative to image content
 }
 
-interface ImageBounds {
+export interface ImageBounds {
   x: number
   y: number
   width: number
   height: number
+}
+
+export interface AnnotatedImageHandle {
+  imageBounds: ImageBounds | null
+  containerEl: HTMLDivElement | null
 }
 
 interface AnnotatedImageProps {
@@ -27,9 +32,11 @@ interface AnnotatedImageProps {
   onMarkerClick?: (markerId: string) => void
   editable?: boolean
   className?: string
+  /** Extra layer rendered inside the image-bounds overlay (e.g. annotation canvas) */
+  renderOverlay?: (bounds: ImageBounds) => React.ReactNode
 }
 
-export function AnnotatedImage({
+export const AnnotatedImage = forwardRef<AnnotatedImageHandle, AnnotatedImageProps>(function AnnotatedImage({
   src,
   alt,
   markers,
@@ -38,10 +45,16 @@ export function AnnotatedImage({
   onMarkerClick,
   editable = false,
   className,
-}: AnnotatedImageProps) {
+  renderOverlay,
+}: AnnotatedImageProps, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const [imageBounds, setImageBounds] = useState<ImageBounds | null>(null)
+
+  useImperativeHandle(ref, () => ({
+    get imageBounds() { return imageBounds },
+    get containerEl() { return containerRef.current },
+  }), [imageBounds])
 
   const updateImageBounds = useCallback(() => {
     const img = imgRef.current
@@ -132,6 +145,7 @@ export function AnnotatedImage({
             height: imageBounds.height,
           }}
         >
+          {renderOverlay?.(imageBounds)}
           {markers.map((marker, index) => {
             const isActive = marker.id === activeMarkerId
             return (
@@ -190,4 +204,4 @@ export function AnnotatedImage({
       )}
     </div>
   )
-}
+})

@@ -5,8 +5,8 @@ import { AudioPlayer } from '@/components/audio-player'
 import { TranscriptView } from '@/components/transcript-view'
 import { ProcessingStatusWrapper } from '@/components/processing-status'
 import { Badge } from '@/components/ui/badge'
-import { Check, Square, User, Clock } from 'lucide-react'
-import type { ActionItem, ProcessingStatus, Sentiment, WordTimestamp } from '@/lib/types/database'
+import { Check, Square, User, Clock, MapPin } from 'lucide-react'
+import type { ActionItem, Annotation, ProcessingStatus, Sentiment, WordTimestamp } from '@/lib/types/database'
 
 const sentimentConfig = {
   positive: { label: 'Positiv', className: 'bg-green-500/10 text-green-500 border-green-500/20' },
@@ -29,18 +29,27 @@ interface FeedbackDetailProps {
     guest_name: string | null
     author_name: string | null
     created_at: string
+    annotations?: Annotation[] | null
   }
   onToggleActionItem?: (entryId: string, index: number) => void
   onComplete?: () => void
+  /** Called when this entry is focused/selected (e.g. to show annotations on image) */
+  onFocus?: (entryId: string) => void
+  /** Whether this entry is currently focused/selected */
+  isFocused?: boolean
 }
 
-export function FeedbackDetail({ entry, onToggleActionItem, onComplete }: FeedbackDetailProps) {
+export function FeedbackDetail({ entry, onToggleActionItem, onComplete, onFocus, isFocused }: FeedbackDetailProps) {
   const [currentTime, setCurrentTime] = useState(0)
   const authorName = entry.guest_name || entry.author_name || 'Anonym'
   const date = new Date(entry.created_at)
+  const annotationCount = entry.annotations?.filter((a) => a.type === 'pin').length ?? 0
 
   return (
-    <div className="rounded-lg border p-4 space-y-4">
+    <div
+      className={`rounded-lg border p-4 space-y-4 transition-colors cursor-pointer ${isFocused ? 'border-primary/50 bg-primary/5' : 'hover:border-muted-foreground/30'}`}
+      onClick={() => onFocus?.(entry.id)}
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -64,6 +73,12 @@ export function FeedbackDetail({ entry, onToggleActionItem, onComplete }: Feedba
               <Clock className="h-3 w-3" />
               {Math.floor(entry.audio_duration_seconds / 60)}:
               {String(entry.audio_duration_seconds % 60).padStart(2, '0')}
+            </span>
+          )}
+          {annotationCount > 0 && (
+            <span className="flex items-center gap-1 text-xs text-orange-500">
+              <MapPin className="h-3 w-3" />
+              {annotationCount}
             </span>
           )}
           {entry.sentiment && (
