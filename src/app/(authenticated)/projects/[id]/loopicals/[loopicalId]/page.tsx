@@ -77,6 +77,8 @@ export default async function LoopicalDetailPage({
     tags: entry.tags as any,
     feedback_point_id: entry.feedback_point_id as string | null,
     annotations: entry.annotations as any,
+    video_url: entry.video_url as string | null,
+    media_type: (entry.media_type ?? 'audio') as 'audio' | 'video',
   }))
 
   return (

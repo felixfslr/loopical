@@ -24,7 +24,9 @@ import type { ActionItem, Annotation, ProcessingStatus, Sentiment, WordTimestamp
 
 interface Entry {
   id: string
-  audio_url: string
+  audio_url: string | null
+  video_url?: string | null
+  media_type?: 'audio' | 'video'
   audio_duration_seconds: number | null
   transcript: string | null
   summary: string | null

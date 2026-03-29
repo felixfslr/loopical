@@ -23,6 +23,12 @@ export type MemberRole = 'owner' | 'admin' | 'member' | 'viewer'
 
 export type FeedbackMode = 'guided' | 'open'
 
+export type ActionItemStatus = 'open' | 'in_progress' | 'done'
+
+export type ActionItemPriority = 'high' | 'medium' | 'low'
+
+export type FeedbackMediaType = 'audio' | 'video'
+
 export interface WordTimestamp {
   word: string
   start: number
@@ -55,6 +61,11 @@ export interface ActionItem {
   text: string
   done: boolean
   priority?: 'high' | 'medium' | 'low'
+}
+
+export interface FollowUpQuestion {
+  question: string
+  answered: boolean
 }
 
 export interface Database {
@@ -243,7 +254,7 @@ export interface Database {
         Row: {
           id: string
           loopical_id: string
-          audio_url: string
+          audio_url: string | null
           audio_duration_seconds: number | null
           transcript: string | null
           summary: string | null
@@ -257,12 +268,18 @@ export interface Database {
           guest_name: string | null
           feedback_point_id: string | null
           annotations: Json | null
+          is_read: boolean
+          priority_score: number
+          follow_up_questions: Json | null
+          parent_entry_id: string | null
+          media_type: FeedbackMediaType
+          video_url: string | null
           created_at: string
         }
         Insert: {
           id?: string
           loopical_id: string
-          audio_url: string
+          audio_url?: string | null
           audio_duration_seconds?: number | null
           transcript?: string | null
           summary?: string | null
@@ -276,12 +293,18 @@ export interface Database {
           guest_name?: string | null
           feedback_point_id?: string | null
           annotations?: Json | null
+          is_read?: boolean
+          priority_score?: number
+          follow_up_questions?: Json | null
+          parent_entry_id?: string | null
+          media_type?: FeedbackMediaType
+          video_url?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           loopical_id?: string
-          audio_url?: string
+          audio_url?: string | null
           audio_duration_seconds?: number | null
           transcript?: string | null
           summary?: string | null
@@ -295,6 +318,12 @@ export interface Database {
           guest_name?: string | null
           feedback_point_id?: string | null
           annotations?: Json | null
+          is_read?: boolean
+          priority_score?: number
+          follow_up_questions?: Json | null
+          parent_entry_id?: string | null
+          media_type?: FeedbackMediaType
+          video_url?: string | null
           created_at?: string
         }
         Relationships: [
@@ -310,6 +339,13 @@ export interface Database {
             columns: ['author_id']
             isOneToOne: false
             referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'feedback_entries_parent_entry_id_fkey'
+            columns: ['parent_entry_id']
+            isOneToOne: false
+            referencedRelation: 'feedback_entries'
             referencedColumns: ['id']
           },
         ]
@@ -432,6 +468,57 @@ export interface Database {
           {
             foreignKeyName: 'comments_author_id_fkey'
             columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      action_items: {
+        Row: {
+          id: string
+          feedback_entry_id: string
+          text: string
+          priority: ActionItemPriority
+          status: ActionItemStatus
+          assignee_id: string | null
+          order_index: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          feedback_entry_id: string
+          text: string
+          priority?: ActionItemPriority
+          status?: ActionItemStatus
+          assignee_id?: string | null
+          order_index?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          feedback_entry_id?: string
+          text?: string
+          priority?: ActionItemPriority
+          status?: ActionItemStatus
+          assignee_id?: string | null
+          order_index?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'action_items_feedback_entry_id_fkey'
+            columns: ['feedback_entry_id']
+            isOneToOne: false
+            referencedRelation: 'feedback_entries'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'action_items_assignee_id_fkey'
+            columns: ['assignee_id']
             isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']

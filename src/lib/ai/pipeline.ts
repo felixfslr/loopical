@@ -2,6 +2,8 @@ import { logger } from '@/lib/logger'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { transcribeAudio } from './transcribe'
 import { analyzeTranscript } from './analyze'
+import { computePriorityScore } from './priority'
+import { generateFollowUpQuestions } from './followup'
 import type { Annotation, ProcessingStatus, Json } from '@/lib/types/database'
 
 async function updateStatus(
@@ -26,7 +28,7 @@ export async function processFeedbackEntry(entryId: string) {
   // Fetch the entry and its loopical context
   const { data: entry } = await admin
     .from('feedback_entries')
-    .select('audio_url, loopical_id, feedback_point_id, annotations')
+    .select('audio_url, video_url, media_type, loopical_id, feedback_point_id, annotations, audio_duration_seconds')
     .eq('id', entryId)
     .single()
 
@@ -55,11 +57,22 @@ export async function processFeedbackEntry(entryId: string) {
     }
   }
 
+  // Determine the media URL to transcribe (video or audio)
+  const transcriptionUrl = entry.media_type === 'video'
+    ? entry.video_url
+    : entry.audio_url
+
+  if (!transcriptionUrl) {
+    logger.error({ entryId }, 'No media URL for transcription')
+    await updateStatus(entryId, 'error')
+    return
+  }
+
   try {
     // Step 1: Transcription
     await updateStatus(entryId, 'transcribing')
 
-    const transcription = await transcribeAudio(entry.audio_url)
+    const transcription = await transcribeAudio(transcriptionUrl)
 
     await admin
       .from('feedback_entries')
@@ -85,6 +98,7 @@ export async function processFeedbackEntry(entryId: string) {
           sentiment: 'neutral',
           tags: ['general'],
           processing_status: 'complete',
+          priority_score: 0,
         })
         .eq('id', entryId)
     } else {
@@ -100,6 +114,9 @@ export async function processFeedbackEntry(entryId: string) {
         annotations: (entry.annotations as Annotation[] | null) ?? undefined,
       })
 
+      // Compute priority score for inbox triage
+      const priorityScore = computePriorityScore(analysis, entry.audio_duration_seconds)
+
       // Step 3: Save results and mark complete
       await admin
         .from('feedback_entries')
@@ -109,8 +126,51 @@ export async function processFeedbackEntry(entryId: string) {
           sentiment: analysis.sentiment,
           tags: analysis.tags,
           processing_status: 'complete',
+          priority_score: priorityScore,
         })
         .eq('id', entryId)
+
+      // Step 4: Write action items to dedicated table
+      if (analysis.actionItems.length > 0) {
+        const actionItemRows = analysis.actionItems.map((item, index) => ({
+          feedback_entry_id: entryId,
+          text: item.text,
+          priority: item.priority || 'medium',
+          status: item.done ? 'done' as const : 'open' as const,
+          order_index: index,
+        }))
+
+        const { error: aiError } = await admin
+          .from('action_items')
+          .insert(actionItemRows)
+
+        if (aiError) {
+          logger.error({ err: aiError, entryId }, 'Failed to insert action items')
+        }
+      }
+
+      // Step 5: Generate follow-up questions (non-blocking)
+      try {
+        const questions = await generateFollowUpQuestions(cleanTranscript, {
+          title: loopical?.title ?? '',
+          description: loopical?.description ?? null,
+        })
+
+        if (questions.length > 0) {
+          await admin
+            .from('feedback_entries')
+            .update({
+              follow_up_questions: questions.map((q) => ({
+                question: q,
+                answered: false,
+              })),
+            })
+            .eq('id', entryId)
+        }
+      } catch (err) {
+        // Follow-up generation is non-critical — log and continue
+        logger.warn({ err, entryId }, 'Follow-up question generation failed')
+      }
     }
   } catch (err) {
     logger.error({ err, entryId }, 'AI pipeline error')

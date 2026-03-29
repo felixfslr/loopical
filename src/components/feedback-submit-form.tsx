@@ -1,16 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { VoiceRecorder } from '@/components/voice-recorder'
+import { VideoRecorder } from '@/components/video-recorder'
+import { RecordingModeSelector, type RecordingMode } from '@/components/recording-mode-selector'
+import { FollowUpPrompt } from '@/components/follow-up-prompt'
 import { ProcessingStatusWrapper } from '@/components/processing-status'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Check, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Annotation } from '@/lib/types/database'
+import { createClient } from '@/lib/supabase/client'
+import type { Annotation, FollowUpQuestion } from '@/lib/types/database'
 
 const fadeSlide = {
   initial: { opacity: 0, y: 12 },
@@ -51,15 +55,47 @@ export function FeedbackSubmitForm({
   onReRecord,
 }: FeedbackSubmitFormProps) {
   const router = useRouter()
+  const [recordingMode, setRecordingMode] = useState<RecordingMode>('audio')
   const [guestName, setGuestName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [entryId, setEntryId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [followUpQuestions, setFollowUpQuestions] = useState<FollowUpQuestion[] | null>(null)
 
-  async function handleSubmit(blob: Blob, durationSeconds: number) {
-    if (blob.size > 25 * 1024 * 1024) {
-      toast.error('Aufnahme ist zu groß (max. 25 MB).')
+  // Listen for follow-up questions after processing completes
+  useEffect(() => {
+    if (!entryId) return
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`followup-${entryId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'feedback_entries',
+          filter: `id=eq.${entryId}`,
+        },
+        (payload) => {
+          const entry = payload.new as { follow_up_questions: FollowUpQuestion[] | null; processing_status: string }
+          if (entry.processing_status === 'complete' && entry.follow_up_questions?.length) {
+            setFollowUpQuestions(entry.follow_up_questions)
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [entryId])
+
+  async function handleSubmitAudio(blob: Blob, durationSeconds: number) {
+    const maxSize = recordingMode === 'audio' ? 25 * 1024 * 1024 : 100 * 1024 * 1024
+    if (blob.size > maxSize) {
+      toast.error(`Aufnahme ist zu groß (max. ${recordingMode === 'audio' ? '25' : '100'} MB).`)
       return
     }
 
@@ -68,7 +104,14 @@ export function FeedbackSubmitForm({
 
     try {
       const formData = new FormData()
-      formData.append('audio', blob, 'recording.webm')
+      const isVideo = recordingMode === 'webcam' || recordingMode === 'screen'
+
+      if (isVideo) {
+        formData.append('video', blob, 'recording.webm')
+        formData.append('mediaType', 'video')
+      } else {
+        formData.append('audio', blob, 'recording.webm')
+      }
       formData.append('loopicalId', loopicalId)
       formData.append('durationSeconds', String(durationSeconds))
       if (authorId) formData.append('authorId', authorId)
@@ -105,11 +148,14 @@ export function FeedbackSubmitForm({
     setSubmitted(false)
     setEntryId(null)
     setError(null)
+    setFollowUpQuestions(null)
   }
 
   function handleProcessingComplete() {
     router.refresh()
   }
+
+  const isVideoMode = recordingMode === 'webcam' || recordingMode === 'screen'
 
   return (
     <div className="space-y-4">
@@ -138,18 +184,30 @@ export function FeedbackSubmitForm({
               onComplete={handleProcessingComplete}
             >
               {/* Shown when complete */}
-              <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-6 text-center">
-                <Check className="mx-auto h-8 w-8 text-green-500 mb-3" />
-                <p className="font-medium">Danke für dein Feedback!</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Dein Voice-Feedback wurde verarbeitet.
-                </p>
-                <button
-                  onClick={handleReset}
-                  className="mt-4 text-sm text-muted-foreground underline hover:text-foreground"
-                >
-                  Weiteres Feedback aufnehmen
-                </button>
+              <div className="space-y-4">
+                <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-6 text-center">
+                  <Check className="mx-auto h-8 w-8 text-green-500 mb-3" />
+                  <p className="font-medium">Danke für dein Feedback!</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Dein {isVideoMode ? 'Video' : 'Voice'}-Feedback wurde verarbeitet.
+                  </p>
+                  <button
+                    onClick={handleReset}
+                    className="mt-4 text-sm text-muted-foreground underline hover:text-foreground"
+                  >
+                    Weiteres Feedback aufnehmen
+                  </button>
+                </div>
+
+                {/* Follow-up questions */}
+                {followUpQuestions && followUpQuestions.length > 0 && (
+                  <FollowUpPrompt
+                    questions={followUpQuestions}
+                    loopicalId={loopicalId}
+                    parentEntryId={entryId}
+                    guestName={guestName || undefined}
+                  />
+                )}
               </div>
             </ProcessingStatusWrapper>
           </motion.div>
@@ -167,14 +225,31 @@ export function FeedbackSubmitForm({
                 />
               </div>
             )}
-            <VoiceRecorder
-              onSubmit={handleSubmit}
-              isSubmitting={isSubmitting}
-              variant={variant}
-              onRecordingStateChange={onRecordingStateChange}
-              onPreviewStateChange={onPreviewStateChange}
-              onReRecord={onReRecord}
-            />
+
+            {/* Recording mode selector */}
+            <div className="flex justify-center mb-4">
+              <RecordingModeSelector
+                value={recordingMode}
+                onChange={setRecordingMode}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            {isVideoMode ? (
+              <VideoRecorder
+                onSubmit={handleSubmitAudio}
+                isSubmitting={isSubmitting}
+              />
+            ) : (
+              <VoiceRecorder
+                onSubmit={handleSubmitAudio}
+                isSubmitting={isSubmitting}
+                variant={variant}
+                onRecordingStateChange={onRecordingStateChange}
+                onPreviewStateChange={onPreviewStateChange}
+                onReRecord={onReRecord}
+              />
+            )}
           </motion.div>
         )}
       </AnimatePresence>

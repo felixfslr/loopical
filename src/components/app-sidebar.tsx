@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Settings, LogOut, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Settings, LogOut, Menu, X, Inbox, ListChecks } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { signOut } from '@/app/login/actions'
@@ -20,6 +20,8 @@ interface AppSidebarProps {
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/inbox', label: 'Inbox', icon: Inbox },
+  { href: '/action-items', label: 'Action Items', icon: ListChecks },
   { href: '/settings', label: 'Einstellungen', icon: Settings },
 ]
 

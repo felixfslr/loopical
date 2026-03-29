@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { AudioPlayer } from '@/components/audio-player'
+import { VideoPlayer } from '@/components/video-player'
 import { TranscriptView } from '@/components/transcript-view'
 import { ProcessingStatusWrapper } from '@/components/processing-status'
 import { Badge } from '@/components/ui/badge'
-import { Check, Square, User, Clock, MapPin } from 'lucide-react'
-import type { ActionItem, Annotation, ProcessingStatus, Sentiment, WordTimestamp } from '@/lib/types/database'
+import { Check, Square, User, Clock, MapPin, Video, Mic } from 'lucide-react'
+import type { ActionItem, Annotation, FeedbackMediaType, ProcessingStatus, Sentiment, WordTimestamp } from '@/lib/types/database'
 
 const sentimentConfig = {
   positive: { label: 'Positiv', className: 'bg-green-500/10 text-green-500 border-green-500/20' },
@@ -17,7 +18,9 @@ const sentimentConfig = {
 interface FeedbackDetailProps {
   entry: {
     id: string
-    audio_url: string
+    audio_url: string | null
+    video_url?: string | null
+    media_type?: FeedbackMediaType
     audio_duration_seconds: number | null
     transcript: string | null
     summary: string | null
@@ -44,6 +47,7 @@ export function FeedbackDetail({ entry, onToggleActionItem, onComplete, onFocus,
   const authorName = entry.guest_name || entry.author_name || 'Anonym'
   const date = new Date(entry.created_at)
   const annotationCount = entry.annotations?.filter((a) => a.type === 'pin').length ?? 0
+  const isVideo = entry.media_type === 'video'
 
   return (
     <div
@@ -68,12 +72,16 @@ export function FeedbackDetail({ entry, onToggleActionItem, onComplete, onFocus,
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {entry.audio_duration_seconds && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              {Math.floor(entry.audio_duration_seconds / 60)}:
-              {String(entry.audio_duration_seconds % 60).padStart(2, '0')}
-            </span>
+          {isVideo ? (
+            <Video className="h-3.5 w-3.5 text-muted-foreground" />
+          ) : (
+            entry.audio_duration_seconds && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                {Math.floor(entry.audio_duration_seconds / 60)}:
+                {String(entry.audio_duration_seconds % 60).padStart(2, '0')}
+              </span>
+            )
           )}
           {annotationCount > 0 && (
             <span className="flex items-center gap-1 text-xs text-orange-500">
@@ -92,8 +100,12 @@ export function FeedbackDetail({ entry, onToggleActionItem, onComplete, onFocus,
         </div>
       </div>
 
-      {/* Audio Player */}
-      <AudioPlayer src={entry.audio_url} onTimeUpdate={setCurrentTime} />
+      {/* Media Player */}
+      {isVideo && entry.video_url ? (
+        <VideoPlayer src={entry.video_url} />
+      ) : entry.audio_url ? (
+        <AudioPlayer src={entry.audio_url} onTimeUpdate={setCurrentTime} />
+      ) : null}
 
       {/* Processing Status Wrapper */}
       <ProcessingStatusWrapper
