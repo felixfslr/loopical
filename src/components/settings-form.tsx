@@ -17,6 +17,7 @@ interface SettingsFormProps {
 export function SettingsForm({ email, fullName, avatarUrl }: SettingsFormProps) {
   const [state, formAction, isPending] = useActionState(updateProfile, {
     error: null,
+    fieldErrors: undefined as Record<string, string> | undefined,
     success: false,
   })
   const [preview, setPreview] = useState<string | undefined>(avatarUrl)
@@ -77,8 +78,12 @@ export function SettingsForm({ email, fullName, avatarUrl }: SettingsFormProps) 
           id="fullName"
           name="fullName"
           defaultValue={fullName}
+          maxLength={100}
           placeholder="Dein Name"
         />
+        {state.fieldErrors?.fullName && (
+          <p className="text-xs text-destructive">{state.fieldErrors.fullName}</p>
+        )}
       </div>
 
       {/* Email (read-only) */}

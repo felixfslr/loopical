@@ -3,15 +3,25 @@
 import { requireUser } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { updateProfileSchema, extractFieldErrors } from '@/lib/validations'
+import type { FieldErrors } from '@/lib/validations'
 
 export async function updateProfile(
-  prevState: { error: string | null; success: boolean },
+  prevState: { error: string | null; fieldErrors?: FieldErrors; success: boolean },
   formData: FormData,
-) {
+): Promise<{ error: string | null; fieldErrors?: FieldErrors; success: boolean }> {
   const user = await requireUser()
   const admin = createAdminClient()
 
-  const fullName = formData.get('fullName') as string
+  const parsed = updateProfileSchema.safeParse({
+    fullName: formData.get('fullName'),
+  })
+
+  if (!parsed.success) {
+    return { error: null, fieldErrors: extractFieldErrors(parsed), success: false }
+  }
+
+  const { fullName } = parsed.data
   const avatarFile = formData.get('avatar') as File | null
 
   let avatarUrl: string | undefined

@@ -3,22 +3,30 @@
 import { requireUser } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
+import { createLoopicalSchema, updateProjectSchema, extractFieldErrors } from '@/lib/validations'
+import type { FieldErrors } from '@/lib/validations'
 
 export async function createLoopical(
-  prevState: { error: string | null; success: boolean },
+  prevState: { error: string | null; fieldErrors?: FieldErrors; success: boolean },
   formData: FormData,
 ) {
   const user = await requireUser()
   const admin = createAdminClient()
 
   const projectId = formData.get('projectId') as string
-  const title = formData.get('title') as string
-  const description = (formData.get('description') as string) || null
   const mediaFile = formData.get('media') as File | null
 
-  if (!title?.trim()) {
-    return { error: 'Bitte gib einen Titel ein.', success: false }
+  const parsed = createLoopicalSchema.safeParse({
+    title: formData.get('title'),
+  })
+
+  if (!parsed.success) {
+    return { error: null, fieldErrors: extractFieldErrors(parsed), success: false }
   }
+
+  const { title } = parsed.data
+  const description = (formData.get('description') as string) || null
 
   let mediaUrl: string | null = null
 
@@ -32,7 +40,7 @@ export async function createLoopical(
       .upload(path, mediaFile)
 
     if (uploadError) {
-      console.error('Upload error:', uploadError)
+      logger.error({ err: uploadError }, 'Media upload failed')
       return { error: 'Bild konnte nicht hochgeladen werden.', success: false }
     }
 
@@ -64,7 +72,7 @@ export async function createLoopical(
   })
 
   if (error) {
-    console.error('Create loopical error:', error)
+    logger.error({ err: error }, 'Create loopical failed')
     return { error: `Fehler: ${error.message}`, success: false }
   }
 
@@ -93,7 +101,7 @@ export async function createLoopicalFromFile(formData: FormData) {
     .upload(path, file)
 
   if (uploadError) {
-    console.error('Upload error:', uploadError)
+    logger.error({ err: uploadError }, 'File upload failed')
     return { error: 'Datei konnte nicht hochgeladen werden.', loopicalId: null }
   }
 
@@ -128,7 +136,7 @@ export async function createLoopicalFromFile(formData: FormData) {
     .single()
 
   if (error) {
-    console.error('Create loopical error:', error)
+    logger.error({ err: error }, 'Create loopical failed')
     return { error: `Fehler: ${error.message}`, loopicalId: null }
   }
 
@@ -159,6 +167,42 @@ export async function updateLoopicalAnnotation(
   return { error: null }
 }
 
+export async function archiveProject(projectId: string) {
+  const user = await requireUser()
+  const admin = createAdminClient()
+
+  const { error } = await admin
+    .from('projects')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', projectId)
+    .eq('owner_id', user.id)
+
+  if (error) {
+    return { error: 'Projekt konnte nicht archiviert werden.' }
+  }
+
+  revalidatePath('/dashboard')
+  return { error: null }
+}
+
+export async function unarchiveProject(projectId: string) {
+  const user = await requireUser()
+  const admin = createAdminClient()
+
+  const { error } = await admin
+    .from('projects')
+    .update({ archived_at: null })
+    .eq('id', projectId)
+    .eq('owner_id', user.id)
+
+  if (error) {
+    return { error: 'Projekt konnte nicht wiederhergestellt werden.' }
+  }
+
+  revalidatePath('/dashboard')
+  return { error: null }
+}
+
 export async function deleteProject(projectId: string) {
   const user = await requireUser()
   const admin = createAdminClient()
@@ -178,23 +222,28 @@ export async function deleteProject(projectId: string) {
 }
 
 export async function updateProject(
-  prevState: { error: string | null; success: boolean },
+  prevState: { error: string | null; fieldErrors?: FieldErrors; success: boolean },
   formData: FormData,
 ) {
   const user = await requireUser()
   const admin = createAdminClient()
 
   const projectId = formData.get('projectId') as string
-  const name = formData.get('name') as string
-  const description = (formData.get('description') as string) || null
 
-  if (!name?.trim()) {
-    return { error: 'Bitte gib einen Projektnamen ein.', success: false }
+  const parsed = updateProjectSchema.safeParse({
+    name: formData.get('name'),
+    description: formData.get('description') || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: null, fieldErrors: extractFieldErrors(parsed), success: false }
   }
+
+  const { name, description } = parsed.data
 
   const { error } = await admin
     .from('projects')
-    .update({ name: name.trim(), description })
+    .update({ name: name.trim(), description: description || null })
     .eq('id', projectId)
     .eq('owner_id', user.id)
 

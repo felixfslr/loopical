@@ -20,6 +20,7 @@ export default function NewProjectPage() {
   const router = useRouter()
   const [state, formAction, isPending] = useActionState(createProject, {
     error: null,
+    fieldErrors: undefined as Record<string, string> | undefined,
     projectId: null,
   })
 
@@ -50,8 +51,12 @@ export default function NewProjectPage() {
             id="name"
             name="name"
             required
+            maxLength={100}
             placeholder="z.B. Website Redesign"
           />
+          {state.fieldErrors?.name && (
+            <p className="text-xs text-destructive">{state.fieldErrors.name}</p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -60,8 +65,12 @@ export default function NewProjectPage() {
             id="description"
             name="description"
             placeholder="Worum geht es in diesem Projekt?"
+            maxLength={500}
             rows={3}
           />
+          {state.fieldErrors?.description && (
+            <p className="text-xs text-destructive">{state.fieldErrors.description}</p>
+          )}
         </div>
 
         <div className="space-y-2">

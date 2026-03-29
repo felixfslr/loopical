@@ -3,19 +3,27 @@
 import { requireUser } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { nanoid } from 'nanoid'
+import { logger } from '@/lib/logger'
+import { createProjectSchema, extractFieldErrors } from '@/lib/validations'
+import type { FieldErrors } from '@/lib/validations'
 
 export async function createProject(
-  prevState: { error: string | null; projectId: string | null },
+  prevState: { error: string | null; fieldErrors?: FieldErrors; projectId: string | null },
   formData: FormData,
-): Promise<{ error: string | null; projectId: string | null }> {
+): Promise<{ error: string | null; fieldErrors?: FieldErrors; projectId: string | null }> {
   const user = await requireUser()
-  const name = formData.get('name') as string
-  const description = (formData.get('description') as string) || null
-  const color = (formData.get('color') as string) || '#6366f1'
 
-  if (!name?.trim()) {
-    return { error: 'Bitte gib einen Projektnamen ein.', projectId: null }
+  const parsed = createProjectSchema.safeParse({
+    name: formData.get('name'),
+    description: formData.get('description') || undefined,
+    color: formData.get('color') || '#6366f1',
+  })
+
+  if (!parsed.success) {
+    return { error: null, fieldErrors: extractFieldErrors(parsed), projectId: null }
   }
+
+  const { name, description, color } = parsed.data
 
   const supabase = createAdminClient()
 
@@ -24,7 +32,7 @@ export async function createProject(
     .insert({
       owner_id: user.id,
       name: name.trim(),
-      description,
+      description: description || null,
       color,
       share_token: nanoid(12),
     })
@@ -32,7 +40,7 @@ export async function createProject(
     .single()
 
   if (error) {
-    console.error('Create project error:', error)
+    logger.error({ err: error }, 'Create project failed')
     return { error: `Fehler: ${error.message}`, projectId: null }
   }
 

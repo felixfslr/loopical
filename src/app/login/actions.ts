@@ -4,14 +4,17 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
 export async function loginWithEmail(
-  prevState: { error: string | null; success: boolean },
+  prevState: { error: string | null; fieldErrors?: Record<string, string>; success: boolean },
   formData: FormData,
-) {
-  const email = formData.get('email') as string
+): Promise<{ error: string | null; fieldErrors?: Record<string, string>; success: boolean }> {
+  const { loginEmailSchema, extractFieldErrors } = await import('@/lib/validations')
+  const parsed = loginEmailSchema.safeParse({ email: formData.get('email') })
 
-  if (!email) {
-    return { error: 'Bitte gib deine E-Mail-Adresse ein.', success: false }
+  if (!parsed.success) {
+    return { error: null, fieldErrors: extractFieldErrors(parsed), success: false }
   }
+
+  const { email } = parsed.data
 
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithOtp({
@@ -50,12 +53,17 @@ export async function loginWithPassword(
   prevState: { error: string | null },
   formData: FormData,
 ): Promise<{ error: string | null }> {
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+  const { loginPasswordSchema } = await import('@/lib/validations')
+  const parsed = loginPasswordSchema.safeParse({
+    email: formData.get('email'),
+    password: formData.get('password'),
+  })
 
-  if (!email || !password) {
-    return { error: 'E-Mail und Passwort sind erforderlich.' }
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message }
   }
+
+  const { email, password } = parsed.data
 
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({

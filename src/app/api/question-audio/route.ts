@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireUser } from '@/lib/auth'
 import { questionAudioLimiter } from '@/lib/rate-limit'
 import { ApiError, errorResponse } from '@/lib/api-error'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: Request) {
   try {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
       } as any)
 
     if (uploadError) {
-      console.error('Upload error:', uploadError)
+      logger.error({ err: uploadError }, 'Question audio upload failed')
       throw new ApiError('Audio konnte nicht hochgeladen werden.', 500, 'UPLOAD_FAILED')
     }
 
@@ -74,10 +75,10 @@ export async function POST(request: Request) {
         const result = await response.json()
         transcript = result.text ?? ''
       } else {
-        console.error('Transcription error:', await response.text())
+        logger.error({ status: response.status, body: await response.text() }, 'Transcription API error')
       }
     } catch (err) {
-      console.error('Transcription error:', err)
+      logger.error({ err }, 'Transcription error')
     }
 
     return NextResponse.json({

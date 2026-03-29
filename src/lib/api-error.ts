@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
 
 export class ApiError extends Error {
   constructor(
@@ -18,7 +19,7 @@ export function errorResponse(error: unknown) {
       { status: error.statusCode },
     )
   }
-  console.error('Unhandled API error:', error)
+  logger.error({ err: error }, 'Unhandled API error')
   return NextResponse.json(
     { error: 'Interner Serverfehler.' },
     { status: 500 },

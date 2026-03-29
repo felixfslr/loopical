@@ -5,6 +5,8 @@ import { LoopicalCard } from '@/components/loopical-card'
 import { EmptyState } from '@/components/empty-state'
 import { ShareDialog } from '@/components/share-dialog'
 import { DropZoneUploader } from '@/components/drop-zone-uploader'
+import { ProjectActionsMenu } from '@/components/project-actions-menu'
+import { ArchivedBanner } from '@/components/archived-banner'
 import { ArrowLeft, Plus } from 'lucide-react'
 import Link from 'next/link'
 
@@ -43,6 +45,8 @@ export default async function ProjectDetailPage({
         Zurück zu Projekten
       </Link>
 
+      {project.archived_at && <ArchivedBanner projectId={id} />}
+
       {/* Project Header */}
       <div className="flex items-start justify-between gap-4 mb-8">
         <div className="flex items-center gap-3">
@@ -74,6 +78,7 @@ export default async function ProjectDetailPage({
             <Plus className="mr-2 h-4 w-4" />
             Neues Loopical
           </Link>
+          <ProjectActionsMenu projectId={id} />
         </div>
       </div>
 

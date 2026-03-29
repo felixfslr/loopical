@@ -4,6 +4,7 @@ import { after } from 'next/server'
 import { processFeedbackEntry } from '@/lib/ai/pipeline'
 import { feedbackLimiter } from '@/lib/rate-limit'
 import { ApiError, errorResponse } from '@/lib/api-error'
+import { logger } from '@/lib/logger'
 import type { Json } from '@/lib/types/database'
 
 export async function POST(request: Request) {
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
       } as any)
 
     if (uploadError) {
-      console.error('Upload error:', uploadError)
+      logger.error({ err: uploadError }, 'Audio upload failed')
       throw new ApiError('Audio konnte nicht hochgeladen werden.', 500, 'UPLOAD_FAILED')
     }
 
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
       .single()
 
     if (insertError) {
-      console.error('Insert error:', insertError)
+      logger.error({ err: insertError }, 'Feedback insert failed')
       throw new ApiError('Feedback konnte nicht erstellt werden.', 500, 'INSERT_FAILED')
     }
 
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
       try {
         await processFeedbackEntry(entry.id)
       } catch (err) {
-        console.error('AI processing error:', err)
+        logger.error({ err }, 'AI processing error')
       }
     })
 

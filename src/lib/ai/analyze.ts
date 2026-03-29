@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import type { Annotation } from '@/lib/types/database'
 import type { AnalysisResult } from './types'
 
@@ -117,7 +118,7 @@ export function parseAIResponse(raw: string): AnalysisResult {
         : [],
     }
   } catch (e) {
-    console.error('Failed to parse AI response:', e, 'Raw:', raw)
+    logger.error({ err: e, raw }, 'Failed to parse AI response')
     return {
       summary: 'Kein klares Feedback erkannt — möglicherweise war die Aufnahme zu leise oder enthielt nur Hintergrundgeräusche.',
       actionItems: [],

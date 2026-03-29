@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { transcribeAudio } from './transcribe'
 import { analyzeTranscript } from './analyze'
@@ -15,7 +16,7 @@ async function updateStatus(
     .eq('id', entryId)
 
   if (error) {
-    console.error(`Failed to update status to ${status}:`, error)
+    logger.error({ err: error, entryId, status }, 'Failed to update feedback status')
   }
 }
 
@@ -30,7 +31,7 @@ export async function processFeedbackEntry(entryId: string) {
     .single()
 
   if (!entry) {
-    console.error('Feedback entry not found:', entryId)
+    logger.error({ entryId }, 'Feedback entry not found')
     return
   }
 
@@ -112,7 +113,7 @@ export async function processFeedbackEntry(entryId: string) {
         .eq('id', entryId)
     }
   } catch (err) {
-    console.error('AI pipeline error for entry', entryId, ':', err)
+    logger.error({ err, entryId }, 'AI pipeline error')
     await updateStatus(entryId, 'error')
     throw err // Re-throw so callers (retry endpoint) can see the error
   }

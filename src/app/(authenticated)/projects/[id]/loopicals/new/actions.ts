@@ -3,6 +3,8 @@
 import { requireUser } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
+import { createLoopicalSchema, extractFieldErrors } from '@/lib/validations'
 import type { FeedbackMode } from '@/lib/types/database'
 
 interface FeedbackPointInput {
@@ -26,19 +28,19 @@ export async function createLoopicalWizard(formData: FormData) {
   const welcomeMessage = (formData.get('welcomeMessage') as string) || null
   const mediaFiles = formData.getAll('media') as File[]
   const feedbackPointsJson = formData.get('feedbackPoints') as string | null
-  const contextUrl = (formData.get('contextUrl') as string)?.trim() || null
+  const contextUrlRaw = (formData.get('contextUrl') as string)?.trim() || ''
 
-  // Validate context URL if provided
-  if (contextUrl && !/^https?:\/\//.test(contextUrl)) {
-    return { error: 'URL muss mit http:// oder https:// beginnen.', loopicalId: null }
-  }
-  if (contextUrl && contextUrl.length > 2048) {
-    return { error: 'URL darf maximal 2048 Zeichen lang sein.', loopicalId: null }
+  const parsed = createLoopicalSchema.safeParse({
+    title,
+    contextUrl: contextUrlRaw || undefined,
+  })
+
+  if (!parsed.success) {
+    const fieldErrors = extractFieldErrors(parsed)
+    return { error: fieldErrors.title || fieldErrors.contextUrl || 'Validierungsfehler', loopicalId: null }
   }
 
-  if (!title?.trim()) {
-    return { error: 'Bitte gib einen Titel ein.', loopicalId: null }
-  }
+  const contextUrl = contextUrlRaw || null
 
   // Get max order_index for this project
   const { data: maxOrder } = await admin
@@ -65,7 +67,7 @@ export async function createLoopicalWizard(formData: FormData) {
       .upload(path, file)
 
     if (uploadError) {
-      console.error('Upload error:', uploadError)
+      logger.error({ err: uploadError }, 'Wizard media upload failed')
       continue
     }
 
@@ -97,7 +99,7 @@ export async function createLoopicalWizard(formData: FormData) {
     .single()
 
   if (loopicalError || !loopical) {
-    console.error('Create loopical error:', loopicalError)
+    logger.error({ err: loopicalError }, 'Wizard create loopical failed')
     return { error: `Fehler: ${loopicalError?.message}`, loopicalId: null }
   }
 
@@ -115,7 +117,7 @@ export async function createLoopicalWizard(formData: FormData) {
       .insert(mediaRows)
 
     if (mediaError) {
-      console.error('Insert media error:', mediaError)
+      logger.error({ err: mediaError }, 'Insert loopical media failed')
     }
   }
 
@@ -141,11 +143,11 @@ export async function createLoopicalWizard(formData: FormData) {
           .insert(pointRows)
 
         if (pointsError) {
-          console.error('Insert feedback points error:', pointsError)
+          logger.error({ err: pointsError }, 'Insert feedback points failed')
         }
       }
     } catch (e) {
-      console.error('Parse feedback points error:', e)
+      logger.error({ err: e }, 'Parse feedback points JSON failed')
     }
   }
 

@@ -8,7 +8,7 @@ import { Mail, LogIn } from 'lucide-react'
 export default function LoginPage() {
   const [magicLinkState, magicLinkAction, magicLinkPending] = useActionState(
     loginWithEmail,
-    { error: null, success: false },
+    { error: null, fieldErrors: undefined as Record<string, string> | undefined, success: false },
   )
 
   const [demoState, demoAction, demoPending] = useActionState(
@@ -86,6 +86,11 @@ export default function LoginPage() {
                 placeholder="du@beispiel.de"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
+              {magicLinkState.fieldErrors?.email && (
+                <p className="text-xs text-destructive mt-1">
+                  {magicLinkState.fieldErrors.email}
+                </p>
+              )}
             </div>
 
             {magicLinkState.error && (
