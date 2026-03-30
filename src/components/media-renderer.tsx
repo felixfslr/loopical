@@ -91,7 +91,7 @@ export function MediaRenderer({
       return (
         <UrlEmbed
           url={mediaUrl}
-          metadata={metadata as { title?: string; description?: string; image?: string } | null}
+          metadata={metadata as { title?: string; description?: string; image?: string; embeddable?: boolean; embedBlockReason?: string | null } | null}
           className={className}
         />
       )

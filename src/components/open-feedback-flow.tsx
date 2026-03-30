@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useAnnotations } from '@/hooks/use-annotations'
 import { AnnotationOverlay } from '@/components/annotation-overlay'
+import { MediaRenderer } from '@/components/media-renderer'
 import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
@@ -16,6 +17,8 @@ interface OpenFeedbackFlowProps {
   loopicalDescription: string | null
   contextUrl: string | null
   displayMediaUrl: string | null
+  displayMediaType?: string
+  displayMediaMetadata?: Record<string, unknown> | null
   existingMarkers: Marker[]
   shareToken: string
 }
@@ -26,6 +29,8 @@ export function OpenFeedbackFlow({
   loopicalDescription,
   contextUrl,
   displayMediaUrl,
+  displayMediaType = 'image',
+  displayMediaMetadata,
   existingMarkers,
   shareToken,
 }: OpenFeedbackFlowProps) {
@@ -69,23 +74,34 @@ export function OpenFeedbackFlow({
           )}
         </div>
 
-        {/* Image area with annotation overlay */}
+        {/* Media area — annotation overlay for images, MediaRenderer for other types */}
         <div className="flex items-center justify-center p-4 lg:p-6 lg:flex-1">
           {displayMediaUrl ? (
-            <AnnotationOverlay
-              src={displayMediaUrl}
-              alt={loopicalTitle}
-              existingMarkers={existingMarkers}
-              activeMarkerId={loopicalId}
-              annotations={annotations}
-              onAddPin={addPin}
-              onAddStroke={addStroke}
-              onUndo={undo}
-              isRecording={isRecording}
-              recordingStartMs={recordingStartMs}
-              editable={!isPreview}
-              className="w-full max-h-[50vh] lg:max-h-none"
-            />
+            displayMediaType === 'image' ? (
+              <AnnotationOverlay
+                src={displayMediaUrl}
+                alt={loopicalTitle}
+                existingMarkers={existingMarkers}
+                activeMarkerId={loopicalId}
+                annotations={annotations}
+                onAddPin={addPin}
+                onAddStroke={addStroke}
+                onUndo={undo}
+                isRecording={isRecording}
+                recordingStartMs={recordingStartMs}
+                editable={!isPreview}
+                className="w-full max-h-[50vh] lg:max-h-none"
+              />
+            ) : (
+              <div className="w-full">
+                <MediaRenderer
+                  mediaUrl={displayMediaUrl}
+                  mediaType={displayMediaType}
+                  alt={loopicalTitle}
+                  metadata={displayMediaMetadata}
+                />
+              </div>
+            )
           ) : (
             <div className="py-8">
               <p className="text-muted-foreground text-sm">

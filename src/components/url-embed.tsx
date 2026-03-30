@@ -164,6 +164,7 @@ function GenericUrlEmbed({ url, metadata, className }: {
   const [state, setState] = useState<'checking' | 'iframe' | 'blocked' | 'fallback'>('checking')
   const [ogData, setOgData] = useState(metadata ?? null)
   const [blockReason, setBlockReason] = useState<string | null>(metadata?.embedBlockReason ?? null)
+  const [iframeLoaded, setIframeLoaded] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null)
 
@@ -199,8 +200,7 @@ function GenericUrlEmbed({ url, metadata, className }: {
   // Client-side iframe load detection
   const handleIframeLoad = useCallback(() => {
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current)
-    // iframe loaded — but might be blank or error page
-    // We can't inspect cross-origin iframe content, so we trust the load event
+    setIframeLoaded(true)
   }, [])
 
   const handleIframeError = useCallback(() => {
@@ -209,16 +209,19 @@ function GenericUrlEmbed({ url, metadata, className }: {
     setState('fallback')
   }, [])
 
-  // Set a timeout — if iframe doesn't load within 10s, show fallback option
+  // If iframe doesn't load within 8s, auto-switch to fallback
   useEffect(() => {
-    if (state !== 'iframe') return
+    if (state !== 'iframe' || iframeLoaded) return
     loadTimeoutRef.current = setTimeout(() => {
-      // Don't auto-switch — just offer a button to fall back
-    }, 10000)
+      if (!iframeLoaded) {
+        setBlockReason('iframe_load_failed')
+        setState('fallback')
+      }
+    }, 8000)
     return () => {
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current)
     }
-  }, [state])
+  }, [state, iframeLoaded])
 
   const effectiveOg = ogData || metadata
   let hostname = ''
@@ -280,11 +283,16 @@ function GenericUrlEmbed({ url, metadata, className }: {
   return (
     <div className={`rounded-lg overflow-hidden border bg-muted ${className ?? ''}`}>
       <div className="relative">
+        {!iframeLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center z-10 bg-muted">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
         <iframe
           ref={iframeRef}
           src={url}
           className="w-full aspect-video"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+          referrerPolicy="no-referrer-when-downgrade"
           onLoad={handleIframeLoad}
           onError={handleIframeError}
           style={{ border: 'none' }}

@@ -80,7 +80,12 @@ export default async function GuestLoopicalFeedbackPage({
       y: l.annotation_y,
     }))
 
-  const displayMediaUrl = loopicalMedia?.[0]?.media_url ?? loopical.media_url
+  const firstMedia = loopicalMedia?.[0]
+  const displayMediaUrl = firstMedia?.media_url ?? loopical.media_url
+  const displayMediaType = firstMedia?.media_type ?? 'image'
+  const displayMediaMetadata = firstMedia?.metadata && typeof firstMedia.metadata === 'object' && !Array.isArray(firstMedia.metadata)
+    ? firstMedia.metadata as Record<string, unknown>
+    : null
 
   return (
     <OpenFeedbackFlow
@@ -89,6 +94,8 @@ export default async function GuestLoopicalFeedbackPage({
       loopicalDescription={loopical.description}
       contextUrl={loopical.context_url}
       displayMediaUrl={displayMediaUrl}
+      displayMediaType={displayMediaType}
+      displayMediaMetadata={displayMediaMetadata}
       existingMarkers={existingMarkers}
       shareToken={share_token}
     />
