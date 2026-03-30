@@ -5,7 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { logger } from '@/lib/logger'
 import { createLoopicalSchema, extractFieldErrors } from '@/lib/validations'
-import type { FeedbackMode, MediaType } from '@/lib/types/database'
+import { fetchOpenGraphFull } from '@/lib/opengraph'
+import type { FeedbackMode, MediaType, Json } from '@/lib/types/database'
 
 interface FeedbackPointInput {
   questionText: string
@@ -65,7 +66,7 @@ export async function createLoopicalWizard(formData: FormData) {
   const orderIndex = (maxOrder?.order_index ?? -1) + 1
 
   // Upload media files and get first one as legacy media_url
-  const uploadedMedia: { url: string; type: MediaType; ocrText?: string }[] = []
+  const uploadedMedia: { url: string; type: MediaType; ocrText?: string; metadata?: Record<string, unknown> }[] = []
   const mediaUrls = formData.getAll('mediaUrl') as string[]
 
   for (const file of mediaFiles) {
@@ -101,10 +102,26 @@ export async function createLoopicalWizard(formData: FormData) {
     uploadedMedia.push({ url: publicUrl, type: mediaType, ocrText })
   }
 
-  // Handle URL-type media (no file upload needed)
+  // Handle URL-type media (no file upload needed) — fetch OG data + embeddability check
   for (const url of mediaUrls) {
     if (!url?.trim()) continue
-    uploadedMedia.push({ url: url.trim(), type: 'url' })
+    const trimmedUrl = url.trim()
+    try {
+      const og = await fetchOpenGraphFull(trimmedUrl)
+      uploadedMedia.push({
+        url: trimmedUrl,
+        type: 'url',
+        metadata: {
+          title: og.title,
+          description: og.description,
+          image: og.image,
+          embeddable: og.embeddable,
+          embedBlockReason: og.embedBlockReason,
+        },
+      })
+    } catch {
+      uploadedMedia.push({ url: trimmedUrl, type: 'url' })
+    }
   }
 
   // Create loopical (with first image/pdf as legacy media_url for backward compat)
@@ -140,6 +157,7 @@ export async function createLoopicalWizard(formData: FormData) {
       media_type: m.type,
       order_index: i,
       ocr_text: m.ocrText ?? null,
+      metadata: (m.metadata as Json) ?? null,
     }))
 
     const { data: insertedMedia, error: mediaError } = await admin

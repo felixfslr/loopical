@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { fetchOpenGraph } from '@/lib/opengraph'
+import { fetchOpenGraphFull } from '@/lib/opengraph'
 
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get('url')
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid url' }, { status: 400 })
   }
 
-  const data = await fetchOpenGraph(url)
+  const data = await fetchOpenGraphFull(url)
   return NextResponse.json(data, {
     headers: { 'Cache-Control': 'public, max-age=3600' },
   })
