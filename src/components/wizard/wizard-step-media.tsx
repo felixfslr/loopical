@@ -71,7 +71,6 @@ export function WizardStepMedia({
   const inputRef = useRef<HTMLInputElement>(null)
   const dragItem = useRef<number | null>(null)
   const dragOverItem = useRef<number | null>(null)
-  const [showUrlInput, setShowUrlInput] = useState(false)
   const [urlInput, setUrlInput] = useState('')
 
   function handleFiles(files: FileList | File[]) {
@@ -115,7 +114,6 @@ export function WizardStepMedia({
     }
     onMediaChange([...media, item])
     setUrlInput('')
-    setShowUrlInput(false)
   }
 
   function removeMedia(id: string) {
@@ -161,7 +159,7 @@ export function WizardStepMedia({
       <div>
         <h2 className="text-xl font-semibold mb-1">Was möchtest du reviewen lassen?</h2>
         <p className="text-sm text-muted-foreground">
-          Gib einen Titel ein und lade Screenshots oder Bilder hoch.
+          Gib einen Titel ein und lade Dateien hoch oder bette eine Website ein.
         </p>
       </div>
 
@@ -176,67 +174,71 @@ export function WizardStepMedia({
         />
       </div>
 
-      {/* Upload zone */}
-      <div className="space-y-2">
+      {/* Upload zone — two options side by side */}
+      <div className="space-y-3">
         <Label>Dateien / Medien (optional)</Label>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime,text/markdown,text/plain,.docx,.pptx,.xlsx"
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files) {
-              handleFiles(e.target.files)
-              e.target.value = ''
-            }
-          }}
-        />
-        <div
-          className="rounded-lg border-2 border-dashed p-6 text-center cursor-pointer hover:border-muted-foreground/40 transition-colors"
-          onClick={() => inputRef.current?.click()}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault()
-            handleFiles(e.dataTransfer.files)
-          }}
-        >
-          <Upload className="mx-auto h-6 w-6 text-muted-foreground/50 mb-2" />
-          <p className="text-sm text-muted-foreground">
-            Dateien hierher ziehen, klicken oder einfügen (Strg+V)
-          </p>
-          <p className="text-xs text-muted-foreground/60 mt-1">
-            Bilder, PDFs, Videos, Markdown, Office-Dokumente
-          </p>
-        </div>
 
-        {/* Add URL as media */}
-        {!showUrlInput ? (
-          <button
-            type="button"
-            onClick={() => setShowUrlInput(true)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            URL als Medium hinzufügen
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <Input
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              placeholder="https://figma.com/design/... oder andere URL"
-              onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
-              autoFocus
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* File upload */}
+          <div>
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime,text/markdown,text/plain,.docx,.pptx,.xlsx"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files) {
+                  handleFiles(e.target.files)
+                  e.target.value = ''
+                }
+              }}
             />
-            <Button variant="ghost" size="sm" onClick={handleAddUrl}>
-              <Plus className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => { setShowUrlInput(false); setUrlInput('') }}>
-              <X className="h-4 w-4" />
-            </Button>
+            <div
+              className="rounded-lg border-2 border-dashed p-6 text-center cursor-pointer hover:border-muted-foreground/40 transition-colors h-full flex flex-col items-center justify-center"
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                handleFiles(e.dataTransfer.files)
+              }}
+            >
+              <Upload className="h-6 w-6 text-muted-foreground/50 mb-2" />
+              <p className="text-sm text-muted-foreground">
+                Dateien hochladen
+              </p>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Bilder, PDFs, Videos, Docs
+              </p>
+            </div>
           </div>
-        )}
+
+          {/* URL input */}
+          <div
+            className="rounded-lg border-2 border-dashed p-6 text-center flex flex-col items-center justify-center gap-3"
+          >
+            <Link2 className="h-6 w-6 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">Website einbetten</p>
+            <div className="flex gap-1.5 w-full">
+              <Input
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://..."
+                onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
+                className="h-8 text-xs"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0"
+                onClick={handleAddUrl}
+                disabled={!urlInput.trim()}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Media thumbnails */}
