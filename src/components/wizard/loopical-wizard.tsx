@@ -172,6 +172,7 @@ export function LoopicalWizard({ projectId }: LoopicalWizardProps) {
           markerX: p.markerX ?? null,
           markerY: p.markerY ?? null,
           markerMediaIndex: p.markerMediaIndex,
+          markerViewport: p.markerViewport || null,
           orderIndex: i,
           contextUrl: p.contextUrl || null,
         }))

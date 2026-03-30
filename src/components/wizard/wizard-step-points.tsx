@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AnnotatedImage } from '@/components/annotated-image'
+import { AnnotatedIframe } from '@/components/annotated-iframe'
+import type { IframeViewport } from '@/components/annotated-iframe'
 import { QuestionRecorder } from './question-recorder'
 import {
   ArrowLeft,
@@ -14,6 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   MapPin,
+  Monitor,
+  Smartphone,
   MessageCircleQuestion,
   Sparkles,
   Loader2,
@@ -31,6 +35,7 @@ export interface FeedbackPointDraft {
   markerX?: number | null
   markerY?: number | null
   markerMediaIndex: number
+  markerViewport?: IframeViewport
   contextUrl?: string | null
   isUploading?: boolean
 }
@@ -59,22 +64,38 @@ export function WizardStepPoints({
   const [isSuggesting, setIsSuggesting] = useState(false)
 
   const currentMedia = media[currentMediaIndex]
-  const markersForCurrentImage = points
-    .filter((p) => p.markerX != null && p.markerY != null && p.markerMediaIndex === currentMediaIndex)
-    .map((p) => ({
-      id: p.id,
-      label: p.questionText || 'Neuer Punkt',
-      x: p.markerX!,
-      y: p.markerY!,
-    }))
+  const isUrlMedia = currentMedia && !currentMedia.file && currentMedia.url
+  const [iframeViewport, setIframeViewport] = useState<IframeViewport>('desktop')
 
-  function addPoint(x?: number, y?: number) {
+  const pointsForMedia = points.filter(
+    (p) => p.markerX != null && p.markerY != null && p.markerMediaIndex === currentMediaIndex,
+  )
+
+  const markersForCurrentImage = pointsForMedia.map((p) => ({
+    id: p.id,
+    label: p.questionText || 'Neuer Punkt',
+    x: p.markerX!,
+    y: p.markerY!,
+  }))
+
+  const iframeMarkersForCurrent = isUrlMedia
+    ? pointsForMedia.map((p) => ({
+        id: p.id,
+        label: p.questionText || 'Neuer Punkt',
+        x: p.markerX!,
+        y: p.markerY!,
+        viewport: (p.markerViewport || 'desktop') as IframeViewport,
+      }))
+    : []
+
+  function addPoint(x?: number, y?: number, viewport?: IframeViewport) {
     const newPoint: FeedbackPointDraft = {
       id: crypto.randomUUID(),
       questionText: '',
       markerX: x ?? null,
       markerY: y ?? null,
       markerMediaIndex: currentMediaIndex,
+      markerViewport: viewport,
     }
     onPointsChange([...points, newPoint])
     setActivePointId(newPoint.id)
@@ -93,6 +114,10 @@ export function WizardStepPoints({
 
   function handleImageClick(x: number, y: number) {
     addPoint(x, y)
+  }
+
+  function handleIframeClick(x: number, y: number, viewport: IframeViewport) {
+    addPoint(x, y, viewport)
   }
 
   function handleMarkerClick(markerId: string) {
@@ -141,14 +166,27 @@ export function WizardStepPoints({
       <div>
         <h2 className="text-xl font-semibold mb-1">Definiere deine Feedback-Punkte</h2>
         <p className="text-sm text-muted-foreground">
-          Klicke auf das Bild, um Marker zu setzen, oder füge Punkte ohne Bild-Bezug hinzu.
+          {isUrlMedia
+            ? 'Klicke auf die Website-Vorschau, um Marker zu setzen. Wechsle zwischen Desktop und Mobile.'
+            : 'Klicke auf das Bild, um Marker zu setzen, oder füge Punkte ohne Bild-Bezug hinzu.'}
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left: Image viewer */}
+        {/* Left: Media viewer */}
         <div className="space-y-3">
-          {currentMedia?.preview ? (
+          {isUrlMedia ? (
+            <AnnotatedIframe
+              url={currentMedia.url!}
+              markers={iframeMarkersForCurrent}
+              activeMarkerId={activePointId ?? undefined}
+              onMarkerClick={handleMarkerClick}
+              onIframeClick={handleIframeClick}
+              editable
+              defaultViewport={iframeViewport}
+              className="border"
+            />
+          ) : currentMedia?.preview ? (
             <AnnotatedImage
               src={currentMedia.preview}
               alt="Upload"
@@ -163,7 +201,7 @@ export function WizardStepPoints({
             <div className="rounded-lg border-2 border-dashed p-12 text-center">
               <MapPin className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
               <p className="text-sm text-muted-foreground">
-                Keine Bilder hochgeladen — du kannst trotzdem Punkte ohne Marker erstellen.
+                Keine Medien hochgeladen — du kannst trotzdem Punkte ohne Marker erstellen.
               </p>
             </div>
           ) : currentMedia?.file?.type === 'application/pdf' ? (
@@ -173,10 +211,6 @@ export function WizardStepPoints({
                 className="w-full h-full"
                 title="PDF-Vorschau"
               />
-            </div>
-          ) : currentMedia && !currentMedia.file && currentMedia.url ? (
-            <div className="rounded-lg border p-12 text-center bg-muted">
-              <p className="text-sm text-muted-foreground">URL-Medium — Marker nicht verfügbar</p>
             </div>
           ) : currentMedia?.file && !currentMedia.preview ? (
             <div className="rounded-lg border p-12 text-center bg-muted">
@@ -326,7 +360,14 @@ export function WizardStepPoints({
                         {point.markerX != null ? (
                           <>
                             <MapPin className="h-3 w-3" />
-                            <span>Marker auf Bild {point.markerMediaIndex + 1}</span>
+                            <span>
+                              Marker auf {point.markerViewport ? (
+                                <>
+                                  {point.markerViewport === 'mobile' ? <Smartphone className="inline h-3 w-3 mr-0.5" /> : <Monitor className="inline h-3 w-3 mr-0.5" />}
+                                  {point.markerViewport === 'mobile' ? 'Mobile' : 'Desktop'}
+                                </>
+                              ) : `Bild ${point.markerMediaIndex + 1}`}
+                            </span>
                           </>
                         ) : (
                           <span className="italic">Kein Marker — allgemeiner Punkt</span>

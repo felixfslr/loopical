@@ -17,6 +17,7 @@ interface FeedbackPointInput {
   markerMediaIndex: number
   markerPage?: number
   markerTimestampMs?: number | null
+  markerViewport?: string | null
   orderIndex: number
   contextUrl: string | null
 }
@@ -196,6 +197,7 @@ export async function createLoopicalWizard(formData: FormData) {
           marker_media_index: p.markerMediaIndex,
           marker_page: p.markerPage ?? 0,
           marker_timestamp_ms: p.markerTimestampMs ?? null,
+          marker_viewport: (p.markerViewport || 'desktop') as 'desktop' | 'mobile',
           order_index: p.orderIndex,
           context_url: p.contextUrl || null,
         }))
