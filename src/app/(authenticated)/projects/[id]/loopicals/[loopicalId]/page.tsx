@@ -115,6 +115,7 @@ export default async function LoopicalDetailPage({
           marker_x: p.marker_x,
           marker_y: p.marker_y,
           marker_media_index: p.marker_media_index ?? 0,
+          marker_viewport: (p as any).marker_viewport ?? 'desktop',
           order_index: p.order_index ?? 0,
           context_url: p.context_url ?? null,
         }))}

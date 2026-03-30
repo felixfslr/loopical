@@ -29,6 +29,8 @@ export type ActionItemPriority = 'high' | 'medium' | 'low'
 
 export type FeedbackMediaType = 'audio' | 'video' | 'text'
 
+export type MarkerViewport = 'desktop' | 'mobile'
+
 export interface WordTimestamp {
   word: string
   start: number
@@ -408,6 +410,7 @@ export interface Database {
           marker_media_index: number
           marker_page: number
           marker_timestamp_ms: number | null
+          marker_viewport: MarkerViewport
           order_index: number
           context_url: string | null
           created_at: string
@@ -423,6 +426,7 @@ export interface Database {
           marker_media_index?: number
           marker_page?: number
           marker_timestamp_ms?: number | null
+          marker_viewport?: MarkerViewport
           order_index?: number
           context_url?: string | null
           created_at?: string
@@ -438,6 +442,7 @@ export interface Database {
           marker_media_index?: number
           marker_page?: number
           marker_timestamp_ms?: number | null
+          marker_viewport?: MarkerViewport
           order_index?: number
           context_url?: string | null
           created_at?: string
@@ -587,6 +592,7 @@ export interface Database {
           marker_media_index: number
           marker_page: number
           marker_timestamp_ms: number | null
+          marker_viewport: string
           order_index: number
           context_url: string | null
         }[]

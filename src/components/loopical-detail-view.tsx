@@ -51,6 +51,7 @@ interface FeedbackPointData {
   marker_x: number | null
   marker_y: number | null
   marker_media_index: number
+  marker_viewport?: string
   order_index: number
   context_url: string | null
 }
@@ -139,21 +140,32 @@ export function LoopicalDetailView({
   const currentMedia = mediaItems[currentMediaIndex]
 
   // Build markers for current media
-  const markersForImage = isGuided
-    ? feedbackPoints
-        .filter(
-          (p) =>
-            p.marker_x != null &&
-            p.marker_y != null &&
-            p.marker_media_index === currentMediaIndex,
-        )
-        .map((p) => ({
-          id: p.id,
-          label: p.question_text || 'Punkt',
-          x: p.marker_x!,
-          y: p.marker_y!,
-        }))
+  const pointsForMedia = isGuided
+    ? feedbackPoints.filter(
+        (p) =>
+          p.marker_x != null &&
+          p.marker_y != null &&
+          p.marker_media_index === currentMediaIndex,
+      )
     : []
+
+  const markersForImage = pointsForMedia.map((p) => ({
+    id: p.id,
+    label: p.question_text || 'Punkt',
+    x: p.marker_x!,
+    y: p.marker_y!,
+  }))
+
+  // Build iframe-specific markers (with viewport info)
+  const iframeMarkers = currentMedia?.media_type === 'url'
+    ? pointsForMedia.map((p) => ({
+        id: p.id,
+        label: p.question_text || 'Punkt',
+        x: p.marker_x!,
+        y: p.marker_y!,
+        viewport: (p.marker_viewport || 'desktop') as 'desktop' | 'mobile',
+      }))
+    : undefined
 
   // Filter and sort entries
   const filteredEntries = useMemo(() => {
@@ -264,6 +276,7 @@ export function LoopicalDetailView({
               }
               metadata={currentMedia?.metadata}
               ocrText={currentMedia?.ocr_text}
+              iframeMarkers={iframeMarkers}
             />
 
             {/* Media navigation */}

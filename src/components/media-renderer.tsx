@@ -3,6 +3,8 @@
 import dynamic from 'next/dynamic'
 import { AnnotatedImage } from '@/components/annotated-image'
 import type { ImageBounds, Marker } from '@/components/annotated-image'
+import { AnnotatedIframe } from '@/components/annotated-iframe'
+import type { IframeMarker, IframeViewport } from '@/components/annotated-iframe'
 import { UrlEmbed } from '@/components/url-embed'
 import { VideoPlayerContext } from '@/components/video-player-context'
 import { DocumentViewer } from '@/components/document-viewer'
@@ -40,7 +42,10 @@ interface MediaRendererProps {
   ocrText?: string | null
   videoMarkers?: { id: string; timestampMs: number; label: string }[]
   pdfMarkers?: PdfMarker[]
+  iframeMarkers?: IframeMarker[]
   onPageClick?: (x: number, y: number, page: number) => void
+  onIframeClick?: (x: number, y: number, viewport: IframeViewport) => void
+  editable?: boolean
   className?: string
 }
 
@@ -56,7 +61,10 @@ export function MediaRenderer({
   ocrText,
   videoMarkers,
   pdfMarkers,
+  iframeMarkers,
   onPageClick,
+  onIframeClick,
+  editable,
   className,
 }: MediaRendererProps) {
   switch (mediaType) {
@@ -88,6 +96,21 @@ export function MediaRenderer({
       return <PdfViewer src={mediaUrl} className={className} />
 
     case 'url':
+      // Use AnnotatedIframe when markers exist or in editable mode
+      if ((iframeMarkers && iframeMarkers.length > 0) || editable) {
+        return (
+          <AnnotatedIframe
+            url={mediaUrl}
+            markers={iframeMarkers}
+            activeMarkerId={activeMarkerId}
+            onMarkerClick={onMarkerClick}
+            onIframeClick={onIframeClick}
+            editable={editable}
+            className={className}
+          />
+        )
+      }
+      // No markers — use simple embed with OG preview
       return (
         <UrlEmbed
           url={mediaUrl}
