@@ -55,8 +55,11 @@ export function WizardStepPreview({
   const pointsWithAudio = points.filter((p) => p.questionAudioUrl).length
   const pointsWithUrl = points.filter((p) => p.contextUrl).length
   const pointsWithoutText = points.filter((p) => !p.questionText?.trim()).length
-  const imageCount = media.filter((m) => m.file.type.startsWith('image/')).length
-  const pdfCount = media.filter((m) => m.file.type === 'application/pdf').length
+  const imageCount = media.filter((m) => m.file?.type.startsWith('image/')).length
+  const pdfCount = media.filter((m) => m.file?.type === 'application/pdf').length
+  const videoCount = media.filter((m) => m.file?.type.startsWith('video/')).length
+  const urlCount = media.filter((m) => m.url).length
+  const otherCount = media.length - imageCount - pdfCount - videoCount - urlCount
 
   return (
     <div className="space-y-6">
@@ -73,7 +76,15 @@ export function WizardStepPreview({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Image className="h-3.5 w-3.5 shrink-0" />
-            <span>{imageCount} Bilder{pdfCount > 0 ? `, ${pdfCount} PDFs` : ''}</span>
+            <span>
+              {[
+                imageCount > 0 && `${imageCount} Bilder`,
+                pdfCount > 0 && `${pdfCount} PDFs`,
+                videoCount > 0 && `${videoCount} Videos`,
+                urlCount > 0 && `${urlCount} URLs`,
+                otherCount > 0 && `${otherCount} Dateien`,
+              ].filter(Boolean).join(', ') || 'Keine Medien'}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <MessageCircleQuestion className="h-3.5 w-3.5 shrink-0" />

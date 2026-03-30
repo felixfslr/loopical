@@ -123,6 +123,9 @@ export default async function LoopicalDetailPage({
           media_url: m.media_url,
           media_type: m.media_type,
           order_index: m.order_index ?? 0,
+          metadata: m.metadata as Record<string, unknown> | null,
+          thumbnail_url: m.thumbnail_url ?? null,
+          ocr_text: m.ocr_text ?? null,
         }))}
         pagination={{
           page,

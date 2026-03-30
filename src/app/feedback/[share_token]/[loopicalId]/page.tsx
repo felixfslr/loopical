@@ -53,7 +53,10 @@ export default async function GuestLoopicalFeedbackPage({
         welcomeMessage={loopical.welcome_message}
         contextUrl={loopical.context_url}
         feedbackPoints={feedbackPoints ?? []}
-        media={loopicalMedia ?? []}
+        media={(loopicalMedia ?? []).map((m) => ({
+          ...m,
+          metadata: (typeof m.metadata === 'object' && m.metadata !== null && !Array.isArray(m.metadata)) ? m.metadata as Record<string, unknown> : null,
+        }))}
         shareToken={share_token}
       />
     )

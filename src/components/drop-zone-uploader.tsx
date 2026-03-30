@@ -30,7 +30,9 @@ export function DropZoneUploader({ projectId }: DropZoneUploaderProps) {
 
   async function processFiles(files: FileList | File[]) {
     const accepted = Array.from(files).filter(
-      (f) => f.type.startsWith('image/') || f.type === 'application/pdf'
+      (f) => f.type.startsWith('image/') || f.type === 'application/pdf' ||
+        f.type.startsWith('video/') || f.type === 'text/markdown' || f.type === 'text/plain' ||
+        f.type.includes('officedocument')
     )
     if (accepted.length === 0) return
 
@@ -38,7 +40,7 @@ export function DropZoneUploader({ projectId }: DropZoneUploaderProps) {
       id: crypto.randomUUID(),
       file,
       status: 'pending' as const,
-      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : (file.type.startsWith('video/') ? URL.createObjectURL(file) : null),
     }))
 
     setUploads((prev) => [...prev, ...items])
@@ -118,7 +120,7 @@ export function DropZoneUploader({ projectId }: DropZoneUploaderProps) {
         ref={inputRef}
         type="file"
         multiple
-        accept="image/*,application/pdf"
+        accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime,text/markdown,text/plain,.docx,.pptx,.xlsx"
         className="hidden"
         onChange={handleFileSelect}
       />
@@ -137,7 +139,7 @@ export function DropZoneUploader({ projectId }: DropZoneUploaderProps) {
         <p className="text-sm text-muted-foreground">
           {isDragging
             ? 'Dateien hier ablegen'
-            : 'Bilder oder PDFs hierher ziehen oder klicken'}
+            : 'Dateien hierher ziehen oder klicken'}
         </p>
         <p className="text-xs text-muted-foreground/60 mt-1">
           Erstellt automatisch ein Loopical pro Datei

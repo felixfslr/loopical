@@ -154,9 +154,13 @@ export function LoopicalWizard({ projectId }: LoopicalWizardProps) {
       formData.append('welcomeMessage', state.welcomeMessage)
       if (state.contextUrl) formData.append('contextUrl', state.contextUrl)
 
-      // Add media files
+      // Add media files and URLs
       for (const item of state.media) {
-        formData.append('media', item.file)
+        if (item.file) {
+          formData.append('media', item.file)
+        } else if (item.url) {
+          formData.append('mediaUrl', item.url)
+        }
       }
 
       // Add feedback points as JSON

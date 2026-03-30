@@ -29,3 +29,19 @@ export async function uploadImage(file: File, path: string) {
 
   return publicUrl
 }
+
+export async function uploadMedia(file: File | Blob, path: string, contentType?: string) {
+  const supabase = await createClient()
+  const options = contentType ? { contentType } : undefined
+  const { error } = await supabase.storage
+    .from('media')
+    .upload(path, file, options)
+
+  if (error) throw error
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('media').getPublicUrl(path)
+
+  return publicUrl
+}

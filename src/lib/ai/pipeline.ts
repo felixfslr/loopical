@@ -37,11 +37,24 @@ export async function processFeedbackEntry(entryId: string) {
     return
   }
 
-  const { data: loopical } = await admin
-    .from('loopicals')
-    .select('title, description')
-    .eq('id', entry.loopical_id)
-    .single()
+  const [{ data: loopical }, { data: loopicalMedia }] = await Promise.all([
+    admin
+      .from('loopicals')
+      .select('title, description')
+      .eq('id', entry.loopical_id)
+      .single(),
+    admin
+      .from('loopical_media')
+      .select('ocr_text')
+      .eq('loopical_id', entry.loopical_id)
+      .not('ocr_text', 'is', null),
+  ])
+
+  // Combine OCR text from all media items as document context
+  const documentContext = (loopicalMedia ?? [])
+    .map((m) => m.ocr_text)
+    .filter(Boolean)
+    .join('\n\n---\n\n') || null
 
   // If linked to a feedback point, fetch the question for context
   let feedbackPointQuestion: string | null = null
@@ -112,6 +125,7 @@ export async function processFeedbackEntry(entryId: string) {
         title: loopical?.title ?? '',
         description,
         annotations: (entry.annotations as Annotation[] | null) ?? undefined,
+        documentContext,
       })
 
       // Compute priority score for inbox triage

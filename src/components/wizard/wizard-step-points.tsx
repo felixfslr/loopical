@@ -166,13 +166,21 @@ export function WizardStepPoints({
                 Keine Bilder hochgeladen — du kannst trotzdem Punkte ohne Marker erstellen.
               </p>
             </div>
-          ) : currentMedia?.file.type === 'application/pdf' ? (
+          ) : currentMedia?.file?.type === 'application/pdf' ? (
             <div className="rounded-lg border overflow-hidden bg-muted" style={{ height: '400px' }}>
               <iframe
                 src={URL.createObjectURL(currentMedia.file)}
                 className="w-full h-full"
                 title="PDF-Vorschau"
               />
+            </div>
+          ) : currentMedia && !currentMedia.file && currentMedia.url ? (
+            <div className="rounded-lg border p-12 text-center bg-muted">
+              <p className="text-sm text-muted-foreground">URL-Medium — Marker nicht verfügbar</p>
+            </div>
+          ) : currentMedia?.file && !currentMedia.preview ? (
+            <div className="rounded-lg border p-12 text-center bg-muted">
+              <p className="text-sm text-muted-foreground">{currentMedia.label} — Vorschau nicht verfügbar</p>
             </div>
           ) : (
             <div className="rounded-lg border p-12 text-center bg-muted">

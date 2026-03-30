@@ -17,7 +17,7 @@ export type LoopicalStatus = 'open' | 'in_progress' | 'done'
 
 export type Sentiment = 'positive' | 'neutral' | 'critical'
 
-export type MediaType = 'image' | 'pdf' | 'url'
+export type MediaType = 'image' | 'pdf' | 'url' | 'video' | 'markdown' | 'document'
 
 export type MemberRole = 'owner' | 'admin' | 'member' | 'viewer'
 
@@ -27,7 +27,7 @@ export type ActionItemStatus = 'open' | 'in_progress' | 'done'
 
 export type ActionItemPriority = 'high' | 'medium' | 'low'
 
-export type FeedbackMediaType = 'audio' | 'video'
+export type FeedbackMediaType = 'audio' | 'video' | 'text'
 
 export interface WordTimestamp {
   word: string
@@ -43,6 +43,7 @@ export interface AnnotationPin {
   label: string
   timestamp_ms: number
   media_index: number
+  page?: number
 }
 
 export interface AnnotationStroke {
@@ -53,6 +54,7 @@ export interface AnnotationStroke {
   width: number
   timestamp_ms: number
   media_index: number
+  page?: number
 }
 
 export type Annotation = AnnotationPin | AnnotationStroke
@@ -357,6 +359,9 @@ export interface Database {
           media_url: string
           media_type: MediaType
           order_index: number
+          metadata: Json | null
+          thumbnail_url: string | null
+          ocr_text: string | null
           created_at: string
         }
         Insert: {
@@ -365,6 +370,9 @@ export interface Database {
           media_url: string
           media_type: MediaType
           order_index?: number
+          metadata?: Json | null
+          thumbnail_url?: string | null
+          ocr_text?: string | null
           created_at?: string
         }
         Update: {
@@ -373,6 +381,9 @@ export interface Database {
           media_url?: string
           media_type?: MediaType
           order_index?: number
+          metadata?: Json | null
+          thumbnail_url?: string | null
+          ocr_text?: string | null
           created_at?: string
         }
         Relationships: [
@@ -395,6 +406,8 @@ export interface Database {
           marker_x: number | null
           marker_y: number | null
           marker_media_index: number
+          marker_page: number
+          marker_timestamp_ms: number | null
           order_index: number
           context_url: string | null
           created_at: string
@@ -408,6 +421,8 @@ export interface Database {
           marker_x?: number | null
           marker_y?: number | null
           marker_media_index?: number
+          marker_page?: number
+          marker_timestamp_ms?: number | null
           order_index?: number
           context_url?: string | null
           created_at?: string
@@ -421,6 +436,8 @@ export interface Database {
           marker_x?: number | null
           marker_y?: number | null
           marker_media_index?: number
+          marker_page?: number
+          marker_timestamp_ms?: number | null
           order_index?: number
           context_url?: string | null
           created_at?: string
@@ -568,6 +585,8 @@ export interface Database {
           marker_x: number | null
           marker_y: number | null
           marker_media_index: number
+          marker_page: number
+          marker_timestamp_ms: number | null
           order_index: number
           context_url: string | null
         }[]
@@ -579,6 +598,9 @@ export interface Database {
           media_url: string
           media_type: string
           order_index: number
+          metadata: Json | null
+          thumbnail_url: string | null
+          ocr_text: string | null
         }[]
       }
     }

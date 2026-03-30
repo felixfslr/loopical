@@ -1,20 +1,52 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Upload, X, GripVertical, ArrowRight, Link2 } from 'lucide-react'
+import { Upload, X, GripVertical, ArrowRight, Link2, Plus, FileText, Film, FileSpreadsheet } from 'lucide-react'
 import { toast } from 'sonner'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
-const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf']
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50 MB
+const ALLOWED_TYPES = [
+  'image/png', 'image/jpeg', 'image/webp', 'image/gif',
+  'application/pdf',
+  'video/mp4', 'video/webm', 'video/quicktime',
+  'text/markdown', 'text/plain',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]
+
+function isAcceptedType(file: File) {
+  return ALLOWED_TYPES.includes(file.type) ||
+    file.type.startsWith('image/') ||
+    file.type.startsWith('video/')
+}
+
+function getMaxSize(file: File) {
+  return file.type.startsWith('video/') ? MAX_VIDEO_SIZE : MAX_FILE_SIZE
+}
+
+function getMediaLabel(file: File): string {
+  if (file.type.startsWith('image/')) return 'Bild'
+  if (file.type === 'application/pdf') return 'PDF'
+  if (file.type.startsWith('video/')) return 'Video'
+  if (file.type === 'text/markdown' || file.type === 'text/plain') return 'Text'
+  if (file.type.includes('wordprocessingml')) return 'DOCX'
+  if (file.type.includes('presentationml')) return 'PPTX'
+  if (file.type.includes('spreadsheetml')) return 'XLSX'
+  return 'Datei'
+}
 
 export interface MediaItem {
   id: string
-  file: File
+  file: File | null
   preview: string | null
+  label: string
+  url?: string // For URL-type media (no file upload)
 }
 
 interface WizardStepMediaProps {
@@ -39,33 +71,51 @@ export function WizardStepMedia({
   const inputRef = useRef<HTMLInputElement>(null)
   const dragItem = useRef<number | null>(null)
   const dragOverItem = useRef<number | null>(null)
+  const [showUrlInput, setShowUrlInput] = useState(false)
+  const [urlInput, setUrlInput] = useState('')
 
   function handleFiles(files: FileList | File[]) {
     const all = Array.from(files)
-    const rejected = all.filter(
-      (f) => !ALLOWED_TYPES.includes(f.type) && !f.type.startsWith('image/'),
-    )
-    const tooLarge = all.filter((f) => f.size > MAX_FILE_SIZE)
+    const rejected = all.filter((f) => !isAcceptedType(f))
+    const tooLarge = all.filter((f) => isAcceptedType(f) && f.size > getMaxSize(f))
     if (rejected.length > 0) {
-      toast.error('Nur Bilder und PDFs sind erlaubt.')
+      toast.error('Nicht unterstützter Dateityp.')
     }
     if (tooLarge.length > 0) {
-      toast.error(`Dateien dürfen maximal 10 MB groß sein.`)
+      toast.error('Datei ist zu groß (max. 10 MB, Videos 50 MB).')
     }
-    const accepted = all.filter(
-      (f) =>
-        (f.type.startsWith('image/') || f.type === 'application/pdf') &&
-        f.size <= MAX_FILE_SIZE,
-    )
+    const accepted = all.filter((f) => isAcceptedType(f) && f.size <= getMaxSize(f))
     if (accepted.length === 0) return
 
     const items: MediaItem[] = accepted.map((file) => ({
       id: crypto.randomUUID(),
       file,
       preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      label: getMediaLabel(file),
     }))
 
     onMediaChange([...media, ...items])
+  }
+
+  function handleAddUrl() {
+    const url = urlInput.trim()
+    if (!url) return
+    try {
+      new URL(url) // validate
+    } catch {
+      toast.error('Ungültige URL.')
+      return
+    }
+    const item: MediaItem = {
+      id: crypto.randomUUID(),
+      file: null,
+      preview: null,
+      label: 'URL',
+      url,
+    }
+    onMediaChange([...media, item])
+    setUrlInput('')
+    setShowUrlInput(false)
   }
 
   function removeMedia(id: string) {
@@ -128,12 +178,12 @@ export function WizardStepMedia({
 
       {/* Upload zone */}
       <div className="space-y-2">
-        <Label>Bilder / Screenshots (optional)</Label>
+        <Label>Dateien / Medien (optional)</Label>
         <input
           ref={inputRef}
           type="file"
           multiple
-          accept="image/*,application/pdf"
+          accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime,text/markdown,text/plain,.docx,.pptx,.xlsx"
           className="hidden"
           onChange={(e) => {
             if (e.target.files) {
@@ -153,9 +203,40 @@ export function WizardStepMedia({
         >
           <Upload className="mx-auto h-6 w-6 text-muted-foreground/50 mb-2" />
           <p className="text-sm text-muted-foreground">
-            Bilder hierher ziehen, klicken oder einfügen (Strg+V)
+            Dateien hierher ziehen, klicken oder einfügen (Strg+V)
+          </p>
+          <p className="text-xs text-muted-foreground/60 mt-1">
+            Bilder, PDFs, Videos, Markdown, Office-Dokumente
           </p>
         </div>
+
+        {/* Add URL as media */}
+        {!showUrlInput ? (
+          <button
+            type="button"
+            onClick={() => setShowUrlInput(true)}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            URL als Medium hinzufügen
+          </button>
+        ) : (
+          <div className="flex gap-2">
+            <Input
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="https://figma.com/design/... oder andere URL"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
+              autoFocus
+            />
+            <Button variant="ghost" size="sm" onClick={handleAddUrl}>
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { setShowUrlInput(false); setUrlInput('') }}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Media thumbnails */}
@@ -188,8 +269,15 @@ export function WizardStepMedia({
                     draggable={false}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-xs text-muted-foreground">PDF</span>
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+                    {item.label === 'Video' && <Film className="h-5 w-5 text-muted-foreground/60" />}
+                    {item.label === 'URL' && <Link2 className="h-5 w-5 text-muted-foreground/60" />}
+                    {(item.label === 'DOCX' || item.label === 'PPTX' || item.label === 'XLSX') && <FileSpreadsheet className="h-5 w-5 text-muted-foreground/60" />}
+                    {(item.label === 'Text' || item.label === 'PDF') && <FileText className="h-5 w-5 text-muted-foreground/60" />}
+                    <span className="text-xs text-muted-foreground">{item.label}</span>
+                    {item.url && (
+                      <span className="text-[10px] text-muted-foreground/60 truncate max-w-full px-1">{item.url}</span>
+                    )}
                   </div>
                 )}
                 {/* Drag handle */}

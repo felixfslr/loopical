@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { AnimatePresence } from 'framer-motion'
 import { AnnotatedImage } from '@/components/annotated-image'
+import { MediaRenderer } from '@/components/media-renderer'
 import { FeedbackPointGroup } from '@/components/feedback-point-group'
 import { FeedbackDetail } from '@/components/feedback-detail'
 import { FeedbackFilters } from '@/components/feedback-filters'
@@ -59,6 +60,9 @@ interface MediaData {
   media_url: string
   media_type: string
   order_index: number
+  metadata?: Record<string, unknown> | null
+  thumbnail_url?: string | null
+  ocr_text?: string | null
 }
 
 interface PaginationData {
@@ -242,8 +246,9 @@ export function LoopicalDetailView({
       <div className="md:sticky md:top-16 md:self-start md:max-h-[calc(100dvh-4rem)] md:overflow-y-auto bg-muted/30 rounded-lg md:rounded-none">
         {displayMediaUrl ? (
           <div className="p-4">
-            <AnnotatedImage
-              src={displayMediaUrl}
+            <MediaRenderer
+              mediaUrl={displayMediaUrl}
+              mediaType={currentMedia?.media_type ?? 'image'}
               alt={loopical.title}
               markers={[...markersForImage, ...guestPinMarkers]}
               onMarkerClick={handleMarkerClick}
@@ -257,6 +262,8 @@ export function LoopicalDetailView({
                   )
                 : undefined
               }
+              metadata={currentMedia?.metadata}
+              ocrText={currentMedia?.ocr_text}
             />
 
             {/* Media navigation */}

@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnnotatedImage } from '@/components/annotated-image'
+import { MediaRenderer } from '@/components/media-renderer'
 import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
 import { VoiceRecorder } from '@/components/voice-recorder'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,8 @@ interface MediaItem {
   media_url: string
   media_type: string
   order_index: number
+  metadata?: Record<string, unknown> | null
+  ocr_text?: string | null
 }
 
 interface Recording {
@@ -193,6 +196,52 @@ export function GuidedFeedbackFlow({
   function handleRecordingComplete(blob: Blob, duration: number) {
     if (!currentPoint) return
     uploadRecording(currentPoint.id, blob, duration)
+  }
+
+  const submitTextFeedback = useCallback(
+    async (pointId: string, text: string) => {
+      setRecordings((prev) => {
+        const next = new Map(prev)
+        next.set(pointId, { blob: new Blob(), duration: 0, status: 'uploading' })
+        return next
+      })
+
+      try {
+        const formData = new FormData()
+        formData.append('text', text)
+        formData.append('loopicalId', loopicalId)
+        formData.append('feedbackPointId', pointId)
+        if (guestNameRef.current) formData.append('guestName', guestNameRef.current)
+
+        const response = await fetch('/api/feedback', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) throw new Error('Upload failed')
+
+        setRecordings((prev) => {
+          const next = new Map(prev)
+          const existing = next.get(pointId)
+          if (existing) next.set(pointId, { ...existing, status: 'submitted' })
+          return next
+        })
+      } catch {
+        toast.error('Senden fehlgeschlagen — bitte erneut versuchen.')
+        setRecordings((prev) => {
+          const next = new Map(prev)
+          const existing = next.get(pointId)
+          if (existing) next.set(pointId, { ...existing, status: 'error' })
+          return next
+        })
+      }
+    },
+    [loopicalId],
+  )
+
+  function handleTextSubmit(text: string) {
+    if (!currentPoint) return
+    submitTextFeedback(currentPoint.id, text)
   }
 
   function handleRetryUpload() {
@@ -354,16 +403,19 @@ export function GuidedFeedbackFlow({
       <div className="bg-muted/30 order-1 lg:order-2 lg:sticky lg:top-0 lg:self-start lg:max-h-dvh lg:overflow-y-auto flex flex-col">
         <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
           {currentMedia ? (
-            <AnnotatedImage
-              src={currentMedia.media_url}
+            <MediaRenderer
+              mediaUrl={currentMedia.media_url}
+              mediaType={currentMedia.media_type}
               alt={loopicalTitle}
               markers={markersForImage}
               activeMarkerId={currentPoint?.id}
+              metadata={currentMedia.metadata}
+              ocrText={currentMedia.ocr_text}
             />
           ) : (
             <div className="py-8 text-center">
               <p className="text-sm text-muted-foreground">
-                Kein Bild für diesen Punkt
+                Kein Medium für diesen Punkt
               </p>
             </div>
           )}
@@ -418,6 +470,7 @@ export function GuidedFeedbackFlow({
               ) : (
                 <VoiceRecorder
                   onSubmit={handleRecordingComplete}
+                  onSubmitText={handleTextSubmit}
                   variant="standalone"
                 />
               )}

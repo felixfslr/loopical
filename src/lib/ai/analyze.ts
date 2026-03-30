@@ -4,7 +4,12 @@ import type { AnalysisResult } from './types'
 
 export async function analyzeTranscript(
   transcript: string,
-  context: { title: string; description: string | null; annotations?: Annotation[] | null },
+  context: {
+    title: string
+    description: string | null
+    annotations?: Annotation[] | null
+    documentContext?: string | null
+  },
 ): Promise<AnalysisResult> {
   // Ollama Cloud analysis (60s timeout)
   const controller = new AbortController()
@@ -35,6 +40,7 @@ export async function analyzeTranscript(
 Kontext des Feedback-Punkts: "${context.title}"
 ${context.description ? `Beschreibung / Frage: "${context.description}"` : ''}
 ${context.annotations && context.annotations.filter((a) => a.type === 'pin').length > 0 ? `\nDer Feedback-Geber hat ${context.annotations.filter((a) => a.type === 'pin').length} Markierungen auf dem Bild gesetzt (Marker ${context.annotations.filter((a) => a.type === 'pin').map((a) => a.type === 'pin' ? a.label : '').filter(Boolean).join(', ')}). Wenn der Feedback-Geber über markierte Stellen spricht, referenziere die Marker-Nummern in deiner Zusammenfassung (z.B. "Bei Marker 2...").` : ''}
+${context.documentContext ? `\nDokument-Inhalt (OCR/Text-Extrakt des reviewten Dokuments):\n"""\n${context.documentContext.slice(0, 3000)}\n"""\nBerücksichtige den Dokumentinhalt bei der Analyse — das Feedback bezieht sich auf dieses Dokument.` : ''}
 
 Transkript des Voice-Feedbacks:
 """
