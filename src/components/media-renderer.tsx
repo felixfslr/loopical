@@ -96,25 +96,14 @@ export function MediaRenderer({
       return <PdfViewer src={mediaUrl} className={className} />
 
     case 'url':
-      // Use AnnotatedIframe when markers exist or in editable mode
-      if ((iframeMarkers && iframeMarkers.length > 0) || editable) {
-        return (
-          <AnnotatedIframe
-            url={mediaUrl}
-            markers={iframeMarkers}
-            activeMarkerId={activeMarkerId}
-            onMarkerClick={onMarkerClick}
-            onIframeClick={onIframeClick}
-            editable={editable}
-            className={className}
-          />
-        )
-      }
-      // No markers — use simple embed with OG preview
       return (
-        <UrlEmbed
+        <AnnotatedIframe
           url={mediaUrl}
-          metadata={metadata as { title?: string; description?: string; image?: string; embeddable?: boolean; embedBlockReason?: string | null } | null}
+          markers={iframeMarkers}
+          activeMarkerId={activeMarkerId}
+          onMarkerClick={onMarkerClick}
+          onIframeClick={onIframeClick}
+          editable={editable}
           className={className}
         />
       )
