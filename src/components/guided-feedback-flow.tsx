@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnnotatedImage } from '@/components/annotated-image'
@@ -75,6 +75,50 @@ export function GuidedFeedbackFlow({
   const [recordings, setRecordings] = useState<Map<string, Recording>>(new Map())
   const guestNameRef = useRef(guestName)
   guestNameRef.current = guestName
+
+  // Session persistence via localStorage
+  const sessionKey = `loopical-session-${loopicalId}`
+
+  // Restore session on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(sessionKey)
+      if (!saved) return
+      const session = JSON.parse(saved)
+      if (session.guestName) setGuestName(session.guestName)
+      if (typeof session.currentIndex === 'number' && session.currentIndex > 0) {
+        setCurrentIndex(session.currentIndex)
+        setPhase('guided')
+      }
+      // Restore submitted recordings metadata (not blobs)
+      if (session.submitted && Array.isArray(session.submitted)) {
+        const restoredMap = new Map<string, Recording>()
+        for (const pointId of session.submitted) {
+          restoredMap.set(pointId, { blob: new Blob(), duration: 0, status: 'submitted' })
+        }
+        setRecordings(restoredMap)
+      }
+    } catch {
+      // Ignore corrupted session
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save session on progress changes
+  useEffect(() => {
+    if (phase !== 'guided' && phase !== 'intro') return
+    try {
+      const submitted = Array.from(recordings.entries())
+        .filter(([, r]) => r.status === 'submitted')
+        .map(([id]) => id)
+      localStorage.setItem(sessionKey, JSON.stringify({
+        guestName,
+        currentIndex,
+        submitted,
+      }))
+    } catch {
+      // localStorage full or unavailable
+    }
+  }, [guestName, currentIndex, recordings, phase, sessionKey])
 
   const currentPoint = feedbackPoints[currentIndex]
   const totalPoints = feedbackPoints.length
@@ -157,6 +201,11 @@ export function GuidedFeedbackFlow({
   }
 
   function goToNext() {
+    // Block navigation if current recording has an error
+    if (currentRecording?.status === 'error') {
+      toast.error('Bitte lade die Aufnahme zuerst erneut hoch.')
+      return
+    }
     if (isLastPoint) {
       setPhase('open')
     } else {
@@ -171,6 +220,7 @@ export function GuidedFeedbackFlow({
   }
 
   function handleFinish() {
+    try { localStorage.removeItem(sessionKey) } catch {}
     router.push(`/feedback/${shareToken}/thank-you`)
   }
 
@@ -396,7 +446,11 @@ export function GuidedFeedbackFlow({
             </button>
           )}
           {hasRecording && (
-            <Button size="sm" onClick={goToNext}>
+            <Button
+              size="sm"
+              onClick={goToNext}
+              disabled={currentRecording?.status === 'error'}
+            >
               {isLastPoint ? 'Abschließen' : 'Weiter'}
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>

@@ -155,6 +155,39 @@ export function FeedbackSubmitForm({
     router.refresh()
   }
 
+  async function handleSubmitText(text: string) {
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('text', text)
+      formData.append('loopicalId', loopicalId)
+      if (authorId) formData.append('authorId', authorId)
+      if (feedbackPointId) formData.append('feedbackPointId', feedbackPointId)
+      if (guestName) formData.append('guestName', guestName)
+
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) throw new Error('Upload fehlgeschlagen')
+
+      const data = await response.json()
+      setEntryId(data.id)
+      setSubmitted(true)
+      onNewEntry?.(data.id)
+      onSuccess?.()
+    } catch (err) {
+      console.error('Text submit error:', err)
+      setError('Feedback konnte nicht gesendet werden.')
+      toast.error('Feedback konnte nicht gesendet werden.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const isVideoMode = recordingMode === 'webcam' || recordingMode === 'screen'
 
   return (
@@ -243,6 +276,7 @@ export function FeedbackSubmitForm({
             ) : (
               <VoiceRecorder
                 onSubmit={handleSubmitAudio}
+                onSubmitText={handleSubmitText}
                 isSubmitting={isSubmitting}
                 variant={variant}
                 onRecordingStateChange={onRecordingStateChange}

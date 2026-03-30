@@ -99,7 +99,7 @@ export function InboxList({ entries, projects, loopicalIds, currentFilters }: In
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         {/* Read/Unread filter */}
         <div className="flex gap-1 rounded-lg border p-1">
           {(['all', 'unread', 'read'] as const).map((r) => (
@@ -252,7 +252,10 @@ export function InboxList({ entries, projects, loopicalIds, currentFilters }: In
                     )}
                   </div>
                   {entry.summary && !isProcessing && (
-                    <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">
+                    <p
+                      className="text-sm text-muted-foreground line-clamp-1 mt-0.5"
+                      title={entry.summary}
+                    >
                       {entry.summary}
                     </p>
                   )}
@@ -266,10 +269,13 @@ export function InboxList({ entries, projects, loopicalIds, currentFilters }: In
                 {/* Meta */}
                 <div className="flex items-center gap-2 shrink-0">
                   {entry.action_item_count > 0 && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <ListChecks className="h-3 w-3" />
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] py-0 h-5 gap-1 border-primary/30 text-primary"
+                    >
+                      <ListChecks className="h-2.5 w-2.5" />
                       {entry.action_item_count}
-                    </span>
+                    </Badge>
                   )}
                   {entry.sentiment && (
                     <Badge

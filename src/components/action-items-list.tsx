@@ -1,10 +1,11 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Circle,
   Clock,
@@ -13,8 +14,11 @@ import {
   ArrowRightCircle,
   ArrowDownCircle,
   MessageSquare,
+  Pencil,
+  Check,
+  X as XIcon,
 } from 'lucide-react'
-import { updateActionItemStatus } from '@/app/(authenticated)/action-items/actions'
+import { updateActionItemStatus, updateActionItemText } from '@/app/(authenticated)/action-items/actions'
 import { toast } from 'sonner'
 import type { ActionItemStatus } from '@/lib/types/database'
 
@@ -66,6 +70,9 @@ export function ActionItemsList({ items, projects, currentFilters }: ActionItems
   const router = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
 
   function buildFilterUrl(key: string, value: string) {
     const params = new URLSearchParams()
@@ -84,12 +91,59 @@ export function ActionItemsList({ items, projects, currentFilters }: ActionItems
     })
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function handleBulkStatusChange(status: ActionItemStatus) {
+    startTransition(async () => {
+      for (const id of selectedIds) {
+        const result = await updateActionItemStatus(id, status)
+        if (result.error) {
+          toast.error(result.error)
+          return
+        }
+      }
+      setSelectedIds(new Set())
+    })
+  }
+
+  function startEditing(item: ActionItemData) {
+    setEditingId(item.id)
+    setEditText(item.text)
+  }
+
+  function cancelEditing() {
+    setEditingId(null)
+    setEditText('')
+  }
+
+  function saveEdit(itemId: string) {
+    if (!editText.trim()) return
+    startTransition(async () => {
+      const result = await updateActionItemText(itemId, editText.trim())
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      setEditingId(null)
+      setEditText('')
+    })
+  }
+
   const counts = {
     all: items.length,
     open: items.filter((i) => i.status === 'open').length,
     in_progress: items.filter((i) => i.status === 'in_progress').length,
     done: items.filter((i) => i.status === 'done').length,
   }
+
+  const hasSelection = selectedIds.size > 0
 
   return (
     <div className="space-y-4">
@@ -163,6 +217,24 @@ export function ActionItemsList({ items, projects, currentFilters }: ActionItems
         )}
       </div>
 
+      {/* Bulk action bar */}
+      {hasSelection && (
+        <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2">
+          <span className="text-xs font-medium">{selectedIds.size} ausgewählt</span>
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleBulkStatusChange('done')}>
+            <CheckCircle2 className="mr-1 h-3 w-3" />
+            Erledigt
+          </Button>
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleBulkStatusChange('in_progress')}>
+            <Clock className="mr-1 h-3 w-3" />
+            In Arbeit
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedIds(new Set())}>
+            Abbrechen
+          </Button>
+        </div>
+      )}
+
       {/* Items list */}
       {items.length === 0 ? (
         <div className="py-12 text-center">
@@ -177,14 +249,24 @@ export function ActionItemsList({ items, projects, currentFilters }: ActionItems
             const pc = priorityConfig[item.priority]
             const StatusIcon = sc.icon
             const PriorityIcon = pc.icon
+            const isEditing = editingId === item.id
+            const isSelected = selectedIds.has(item.id)
 
             return (
               <div
                 key={item.id}
                 className={`group flex items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50 ${
                   item.status === 'done' ? 'opacity-60' : ''
-                }`}
+                } ${isSelected ? 'border-primary/50 bg-primary/5' : ''}`}
               >
+                {/* Checkbox for bulk select */}
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleSelect(item.id)}
+                  className="mt-1 shrink-0 accent-primary"
+                />
+
                 {/* Status toggle button */}
                 <button
                   onClick={() => handleStatusToggle(item.id, item.status)}
@@ -197,9 +279,33 @@ export function ActionItemsList({ items, projects, currentFilters }: ActionItems
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm ${item.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
-                    {item.text}
-                  </p>
+                  {isEditing ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        className="h-7 text-sm"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveEdit(item.id)
+                          if (e.key === 'Escape') cancelEditing()
+                        }}
+                      />
+                      <Button variant="ghost" size="icon-sm" onClick={() => saveEdit(item.id)}>
+                        <Check className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" onClick={cancelEditing}>
+                        <XIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <p
+                      className={`text-sm ${item.status === 'done' ? 'line-through text-muted-foreground' : ''}`}
+                      onDoubleClick={() => startEditing(item)}
+                    >
+                      {item.text}
+                    </p>
+                  )}
                   <div className="flex flex-wrap items-center gap-2 mt-1.5">
                     <Badge
                       variant="outline"
@@ -220,6 +326,17 @@ export function ActionItemsList({ items, projects, currentFilters }: ActionItems
                     </span>
                   </div>
                 </div>
+
+                {/* Edit button */}
+                {!isEditing && (
+                  <button
+                    onClick={() => startEditing(item)}
+                    className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                    title="Bearbeiten"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
 
                 {/* Priority */}
                 <div className={`shrink-0 ${pc.className}`} title={`Priorität: ${pc.label}`}>

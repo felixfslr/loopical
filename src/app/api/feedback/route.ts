@@ -42,19 +42,60 @@ export async function POST(request: Request) {
       }
     }
 
+    // Text-only feedback (no audio/video)
+    const textFeedback = formData.get('text') as string | null
+
     // Determine media type
     const isVideo = mediaTypeRaw === 'video' || !!video
     const mediaType: FeedbackMediaType = isVideo ? 'video' : 'audio'
     const mediaFile = isVideo ? video : audio
 
-    if (!mediaFile || !loopicalId) {
-      throw new ApiError('Media und Loopical-ID sind erforderlich.', 400, 'MISSING_PARAMS')
+    if (!mediaFile && !textFeedback?.trim() || !loopicalId) {
+      throw new ApiError('Media oder Text und Loopical-ID sind erforderlich.', 400, 'MISSING_PARAMS')
     }
 
     const admin = createAdminClient()
 
+    // Handle text-only feedback (skip transcription, go straight to analysis)
+    if (textFeedback?.trim() && !mediaFile) {
+      const { data: entry, error: insertError } = await admin
+        .from('feedback_entries')
+        .insert({
+          loopical_id: loopicalId,
+          audio_url: null,
+          video_url: null,
+          media_type: 'audio' as FeedbackMediaType,
+          audio_duration_seconds: null,
+          transcript: textFeedback.trim(),
+          processing_status: 'analyzing',
+          author_id: authorId || null,
+          guest_name: guestName || null,
+          feedback_point_id: feedbackPointId || null,
+          parent_entry_id: parentEntryId || null,
+          annotations: annotations.length > 0 ? annotations : null,
+        })
+        .select('id')
+        .single()
+
+      if (insertError) {
+        logger.error({ err: insertError }, 'Text feedback insert failed')
+        throw new ApiError('Feedback konnte nicht erstellt werden.', 500, 'INSERT_FAILED')
+      }
+
+      // Trigger AI analysis (skip transcription)
+      after(async () => {
+        try {
+          await processFeedbackEntry(entry.id)
+        } catch (err) {
+          logger.error({ err }, 'AI processing error for text feedback')
+        }
+      })
+
+      return NextResponse.json({ id: entry.id })
+    }
+
     // Convert File to ArrayBuffer for reliable binary upload
-    const fileBuffer = await mediaFile.arrayBuffer()
+    const fileBuffer = await mediaFile!.arrayBuffer()
 
     let audioUrl: string | null = null
     let videoUrl: string | null = null

@@ -112,18 +112,37 @@ export function LoopicalWizard({ projectId }: LoopicalWizardProps) {
     const formData = new FormData()
     formData.append('audio', blob, 'question.webm')
 
-    const res = await fetch('/api/question-audio', { method: 'POST', body: formData })
-    if (!res.ok) return
+    try {
+      const res = await fetch('/api/question-audio', { method: 'POST', body: formData })
+      if (!res.ok) {
+        toast.error('Audio-Upload fehlgeschlagen. Bitte versuche es erneut.')
+        dispatch({
+          type: 'SET_POINTS',
+          points: state.feedbackPoints.map((p) =>
+            p.id === pointId ? { ...p, isUploading: false } : p,
+          ),
+        })
+        return
+      }
 
-    const { audio_url, transcript } = await res.json()
-    dispatch({
-      type: 'SET_POINTS',
-      points: state.feedbackPoints.map((p) =>
-        p.id === pointId
-          ? { ...p, questionAudioUrl: audio_url, questionTranscript: transcript, isUploading: false }
-          : p,
-      ),
-    })
+      const { audio_url, transcript } = await res.json()
+      dispatch({
+        type: 'SET_POINTS',
+        points: state.feedbackPoints.map((p) =>
+          p.id === pointId
+            ? { ...p, questionAudioUrl: audio_url, questionTranscript: transcript, isUploading: false }
+            : p,
+        ),
+      })
+    } catch {
+      toast.error('Audio-Upload fehlgeschlagen. Bitte prüfe deine Verbindung.')
+      dispatch({
+        type: 'SET_POINTS',
+        points: state.feedbackPoints.map((p) =>
+          p.id === pointId ? { ...p, isUploading: false } : p,
+        ),
+      })
+    }
   }
 
   function handleSubmit() {

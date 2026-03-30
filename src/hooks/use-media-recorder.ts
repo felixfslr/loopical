@@ -2,6 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 
+export type MicErrorCode = 'not-allowed' | 'not-found' | 'not-readable' | 'security' | 'generic' | null
+
 interface UseMediaRecorderReturn {
   isRecording: boolean
   isPaused: boolean
@@ -11,8 +13,11 @@ interface UseMediaRecorderReturn {
   recordingStartMs: number | null
   startRecording: () => Promise<void>
   stopRecording: () => void
+  pauseRecording: () => void
+  resumeRecording: () => void
   resetRecording: () => void
   error: string | null
+  errorCode: MicErrorCode
 }
 
 const MAX_DURATION = 300 // 5 minutes in seconds
@@ -24,6 +29,7 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<MicErrorCode>(null)
   const [recordingStartMs, setRecordingStartMs] = useState<number | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -32,6 +38,7 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef = useRef<number>(0)
+  const pausedElapsedRef = useRef<number>(0)
 
   // Clean up on unmount
   useEffect(() => {
@@ -65,8 +72,10 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
   const startRecording = useCallback(async () => {
     try {
       setError(null)
+      setErrorCode(null)
       setAudioBlob(null)
       chunksRef.current = []
+      pausedElapsedRef.current = 0
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
@@ -97,6 +106,7 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
         setAudioBlob(blob)
         setIsRecording(false)
+        setIsPaused(false)
 
         // Clean up
         if (timerRef.current) clearInterval(timerRef.current)
@@ -111,32 +121,80 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
       mediaRecorder.start(250) // collect data every 250ms
       const now = Date.now()
       setIsRecording(true)
+      setIsPaused(false)
       setDuration(0)
       startTimeRef.current = now
       setRecordingStartMs(now)
 
       // Timer
       timerRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
+        const elapsed = pausedElapsedRef.current + Math.floor((Date.now() - startTimeRef.current) / 1000)
         setDuration(elapsed)
         if (elapsed >= MAX_DURATION) {
           mediaRecorderRef.current?.stop()
         }
       }, 200)
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setError(
-          'Mikrofon-Zugriff wurde verweigert. Bitte erlaube den Zugriff in deinen Browser-Einstellungen.',
-        )
+      if (err instanceof DOMException) {
+        switch (err.name) {
+          case 'NotAllowedError':
+            setError('Mikrofon-Zugriff wurde verweigert. Bitte erlaube den Zugriff in deinen Browser-Einstellungen.')
+            setErrorCode('not-allowed')
+            break
+          case 'NotFoundError':
+            setError('Kein Mikrofon gefunden. Bitte schließe ein Mikrofon an.')
+            setErrorCode('not-found')
+            break
+          case 'NotReadableError':
+            setError('Mikrofon wird von einer anderen App verwendet. Bitte schließe andere Apps, die das Mikrofon nutzen.')
+            setErrorCode('not-readable')
+            break
+          case 'SecurityError':
+            setError('Mikrofon-Zugriff ist in diesem Browser nicht erlaubt. HTTPS ist erforderlich.')
+            setErrorCode('security')
+            break
+          default:
+            setError('Mikrofon konnte nicht gestartet werden.')
+            setErrorCode('generic')
+        }
       } else {
         setError('Mikrofon konnte nicht gestartet werden.')
+        setErrorCode('generic')
       }
     }
   }, [])
 
   const stopRecording = useCallback(() => {
+    const state = mediaRecorderRef.current?.state
+    if (state === 'recording' || state === 'paused') {
+      mediaRecorderRef.current!.stop()
+    }
+  }, [])
+
+  const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop()
+      mediaRecorderRef.current.pause()
+      // Save elapsed time and stop timer
+      pausedElapsedRef.current += Math.floor((Date.now() - startTimeRef.current) / 1000)
+      if (timerRef.current) clearInterval(timerRef.current)
+      timerRef.current = null
+      setIsPaused(true)
+    }
+  }, [])
+
+  const resumeRecording = useCallback(() => {
+    if (mediaRecorderRef.current?.state === 'paused') {
+      mediaRecorderRef.current.resume()
+      startTimeRef.current = Date.now()
+      // Restart timer
+      timerRef.current = setInterval(() => {
+        const elapsed = pausedElapsedRef.current + Math.floor((Date.now() - startTimeRef.current) / 1000)
+        setDuration(elapsed)
+        if (elapsed >= MAX_DURATION) {
+          mediaRecorderRef.current?.stop()
+        }
+      }, 200)
+      setIsPaused(false)
     }
   }, [])
 
@@ -144,7 +202,9 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
     setAudioBlob(null)
     setDuration(0)
     setError(null)
+    setErrorCode(null)
     chunksRef.current = []
+    pausedElapsedRef.current = 0
   }, [])
 
   return {
@@ -156,7 +216,10 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
     recordingStartMs,
     startRecording,
     stopRecording,
+    pauseRecording,
+    resumeRecording,
     resetRecording,
     error,
+    errorCode,
   }
 }

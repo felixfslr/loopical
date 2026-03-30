@@ -19,6 +19,7 @@ import {
   Loader2,
   Link2,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import type { MediaItem } from './wizard-step-media'
 
 export interface FeedbackPointDraft {
@@ -126,6 +127,7 @@ export function WizardStepPoints({
       onPointsChange([...points, ...newPoints])
     } catch (err) {
       console.error('AI suggestions failed:', err)
+      toast.error('KI-Vorschläge konnten nicht generiert werden. Bitte versuche es später erneut.')
     } finally {
       setIsSuggesting(false)
     }
@@ -164,9 +166,17 @@ export function WizardStepPoints({
                 Keine Bilder hochgeladen — du kannst trotzdem Punkte ohne Marker erstellen.
               </p>
             </div>
+          ) : currentMedia?.file.type === 'application/pdf' ? (
+            <div className="rounded-lg border overflow-hidden bg-muted" style={{ height: '400px' }}>
+              <iframe
+                src={URL.createObjectURL(currentMedia.file)}
+                className="w-full h-full"
+                title="PDF-Vorschau"
+              />
+            </div>
           ) : (
             <div className="rounded-lg border p-12 text-center bg-muted">
-              <p className="text-sm text-muted-foreground">PDF-Vorschau nicht verfügbar</p>
+              <p className="text-sm text-muted-foreground">Vorschau nicht verfügbar</p>
             </div>
           )}
 

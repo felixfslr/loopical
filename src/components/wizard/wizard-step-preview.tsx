@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { AnnotatedImage } from '@/components/annotated-image'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, MapPin, Mic, MessageCircleQuestion, Sparkles, Link2 } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, MapPin, Mic, MessageCircleQuestion, Sparkles, Link2, Image, AlertTriangle } from 'lucide-react'
+import { toast } from 'sonner'
 import type { MediaItem } from './wizard-step-media'
 import type { FeedbackPointDraft } from './wizard-step-points'
 import type { FeedbackMode } from '@/lib/types/database'
@@ -49,6 +50,14 @@ export function WizardStepPreview({
       y: p.markerY!,
     }))
 
+  // Summary stats
+  const pointsWithMarkers = points.filter((p) => p.markerX != null).length
+  const pointsWithAudio = points.filter((p) => p.questionAudioUrl).length
+  const pointsWithUrl = points.filter((p) => p.contextUrl).length
+  const pointsWithoutText = points.filter((p) => !p.questionText?.trim()).length
+  const imageCount = media.filter((m) => m.file.type.startsWith('image/')).length
+  const pdfCount = media.filter((m) => m.file.type === 'application/pdf').length
+
   return (
     <div className="space-y-6">
       <div>
@@ -56,6 +65,41 @@ export function WizardStepPreview({
         <p className="text-sm text-muted-foreground">
           So wird dein Loopical für Feedback-Geber aussehen.
         </p>
+      </div>
+
+      {/* Summary stats */}
+      <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+        <h3 className="text-sm font-medium">Zusammenfassung</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Image className="h-3.5 w-3.5 shrink-0" />
+            <span>{imageCount} Bilder{pdfCount > 0 ? `, ${pdfCount} PDFs` : ''}</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <MessageCircleQuestion className="h-3.5 w-3.5 shrink-0" />
+            <span>{points.length} Punkte</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            <span>{pointsWithMarkers} Marker</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Mic className="h-3.5 w-3.5 shrink-0" />
+            <span>{pointsWithAudio} Audio-Fragen</span>
+          </div>
+        </div>
+
+        {/* Validation warnings */}
+        {(pointsWithoutText > 0 || (mode === 'guided' && points.length === 0)) && (
+          <div className="flex items-start gap-2 mt-2 text-amber-600">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <div className="text-xs space-y-0.5">
+              {pointsWithoutText > 0 && (
+                <p>{pointsWithoutText} Punkt{pointsWithoutText > 1 ? 'e' : ''} ohne Fragetext</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Preview card */}
@@ -188,7 +232,7 @@ export function WizardStepPreview({
                 const data = await res.json()
                 if (data.message) onWelcomeMessageChange(data.message)
               } catch {
-                // silently fail
+                toast.error('Begrüßung konnte nicht generiert werden.')
               } finally {
                 setIsGeneratingWelcome(false)
               }
@@ -208,8 +252,11 @@ export function WizardStepPreview({
           value={welcomeMessage}
           onChange={(e) => onWelcomeMessageChange(e.target.value)}
           placeholder="z.B. Danke, dass du dir Zeit nimmst! Bitte achte besonders auf..."
-          rows={2}
+          rows={3}
         />
+        <p className="text-xs text-muted-foreground">
+          {welcomeMessage.length} Zeichen
+        </p>
       </div>
 
       <div className="flex justify-between">

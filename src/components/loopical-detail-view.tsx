@@ -109,6 +109,8 @@ export function LoopicalDetailView({
   const [filterSentiment, setFilterSentiment] = useState<Sentiment | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<ProcessingStatus | 'all'>('all')
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterHasActionItems, setFilterHasActionItems] = useState(false)
   const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null)
 
   const focusedEntry = focusedEntryId
@@ -151,9 +153,24 @@ export function LoopicalDetailView({
 
   // Filter and sort entries
   const filteredEntries = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim()
     let result = entries
       .filter((e) => filterSentiment === 'all' || e.sentiment === filterSentiment)
       .filter((e) => filterStatus === 'all' || e.processing_status === filterStatus)
+      .filter((e) => {
+        if (!query) return true
+        return (
+          e.transcript?.toLowerCase().includes(query) ||
+          e.summary?.toLowerCase().includes(query) ||
+          e.action_items?.some((a) => a.text.toLowerCase().includes(query)) ||
+          e.guest_name?.toLowerCase().includes(query) ||
+          e.author_name?.toLowerCase().includes(query)
+        )
+      })
+      .filter((e) => {
+        if (!filterHasActionItems) return true
+        return e.action_items && e.action_items.length > 0
+      })
 
     result.sort((a, b) => {
       const ta = new Date(a.created_at).getTime()
@@ -162,7 +179,7 @@ export function LoopicalDetailView({
     })
 
     return result
-  }, [entries, filterSentiment, filterStatus, sortOrder])
+  }, [entries, filterSentiment, filterStatus, sortOrder, searchQuery, filterHasActionItems])
 
   // Group filtered entries by feedback point
   const entriesByPoint = new Map<string, Entry[]>()
@@ -220,9 +237,9 @@ export function LoopicalDetailView({
   const displayMediaUrl = currentMedia?.media_url ?? loopical.media_url
 
   return (
-    <div className="lg:grid lg:grid-cols-[1fr_1.2fr] lg:gap-0 lg:min-h-[calc(100dvh-4rem)]">
+    <div className="md:grid md:grid-cols-[1fr_1.2fr] md:gap-0 md:min-h-[calc(100dvh-4rem)]">
       {/* Left panel — Image viewer (sticky on desktop) */}
-      <div className="lg:sticky lg:top-16 lg:self-start lg:max-h-[calc(100dvh-4rem)] lg:overflow-y-auto bg-muted/30 rounded-lg lg:rounded-none">
+      <div className="md:sticky md:top-16 md:self-start md:max-h-[calc(100dvh-4rem)] md:overflow-y-auto bg-muted/30 rounded-lg md:rounded-none">
         {displayMediaUrl ? (
           <div className="p-4">
             <AnnotatedImage
@@ -285,7 +302,7 @@ export function LoopicalDetailView({
       </div>
 
       {/* Right panel — Content */}
-      <div className="p-4 lg:p-6 space-y-6 lg:overflow-y-auto">
+      <div className="p-4 md:p-6 space-y-6 md:overflow-y-auto">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -447,6 +464,10 @@ export function LoopicalDetailView({
                 onFilterStatusChange={setFilterStatus}
                 sortOrder={sortOrder}
                 onSortOrderChange={setSortOrder}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filterHasActionItems={filterHasActionItems}
+                onFilterHasActionItemsChange={setFilterHasActionItems}
               />
             )}
             {feedbackPoints.map((point, idx) => (
@@ -495,6 +516,10 @@ export function LoopicalDetailView({
                 onFilterStatusChange={setFilterStatus}
                 sortOrder={sortOrder}
                 onSortOrderChange={setSortOrder}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filterHasActionItems={filterHasActionItems}
+                onFilterHasActionItemsChange={setFilterHasActionItems}
               />
             )}
 

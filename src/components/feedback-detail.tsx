@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { AudioPlayer } from '@/components/audio-player'
+import { useRef, useState } from 'react'
+import { AudioPlayer, type AudioPlayerHandle } from '@/components/audio-player'
 import { VideoPlayer } from '@/components/video-player'
 import { TranscriptView } from '@/components/transcript-view'
 import { ProcessingStatusWrapper } from '@/components/processing-status'
 import { Badge } from '@/components/ui/badge'
-import { Check, Square, User, Clock, MapPin, Video, Mic } from 'lucide-react'
+import { Check, Square, User, Clock, MapPin, Video, Mic, ListChecks } from 'lucide-react'
 import type { ActionItem, Annotation, FeedbackMediaType, ProcessingStatus, Sentiment, WordTimestamp } from '@/lib/types/database'
 
 const sentimentConfig = {
@@ -44,10 +44,17 @@ interface FeedbackDetailProps {
 
 export function FeedbackDetail({ entry, onToggleActionItem, onComplete, onFocus, isFocused }: FeedbackDetailProps) {
   const [currentTime, setCurrentTime] = useState(0)
+  const audioPlayerRef = useRef<AudioPlayerHandle>(null)
   const authorName = entry.guest_name || entry.author_name || 'Anonym'
   const date = new Date(entry.created_at)
   const annotationCount = entry.annotations?.filter((a) => a.type === 'pin').length ?? 0
   const isVideo = entry.media_type === 'video'
+  const actionItemCount = entry.action_items?.length ?? 0
+  const openActionItems = entry.action_items?.filter((a) => !a.done).length ?? 0
+
+  function handleSeek(time: number) {
+    audioPlayerRef.current?.seekTo(time)
+  }
 
   return (
     <div
@@ -55,7 +62,7 @@ export function FeedbackDetail({ entry, onToggleActionItem, onComplete, onFocus,
       onClick={() => onFocus?.(entry.id)}
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted">
             <User className="h-3.5 w-3.5 text-muted-foreground" />
@@ -89,6 +96,12 @@ export function FeedbackDetail({ entry, onToggleActionItem, onComplete, onFocus,
               {annotationCount}
             </span>
           )}
+          {actionItemCount > 0 && (
+            <span className={`flex items-center gap-1 text-xs ${openActionItems > 0 ? 'text-primary' : 'text-green-500'}`}>
+              <ListChecks className="h-3 w-3" />
+              {openActionItems > 0 ? `${openActionItems} offen` : 'erledigt'}
+            </span>
+          )}
           {entry.sentiment && (
             <Badge
               variant="outline"
@@ -104,7 +117,7 @@ export function FeedbackDetail({ entry, onToggleActionItem, onComplete, onFocus,
       {isVideo && entry.video_url ? (
         <VideoPlayer src={entry.video_url} />
       ) : entry.audio_url ? (
-        <AudioPlayer src={entry.audio_url} onTimeUpdate={setCurrentTime} />
+        <AudioPlayer ref={audioPlayerRef} src={entry.audio_url} onTimeUpdate={setCurrentTime} />
       ) : null}
 
       {/* Processing Status Wrapper */}
@@ -124,6 +137,7 @@ export function FeedbackDetail({ entry, onToggleActionItem, onComplete, onFocus,
                 text={entry.transcript}
                 wordTimestamps={entry.word_timestamps}
                 currentTime={currentTime}
+                onSeek={entry.audio_url ? handleSeek : undefined}
               />
             </div>
           )}
@@ -148,7 +162,10 @@ export function FeedbackDetail({ entry, onToggleActionItem, onComplete, onFocus,
                 {entry.action_items.map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <button
-                      onClick={() => onToggleActionItem?.(entry.id, i)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onToggleActionItem?.(entry.id, i)
+                      }}
                       className="mt-0.5 shrink-0"
                     >
                       {item.done ? (
