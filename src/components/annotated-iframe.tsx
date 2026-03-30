@@ -45,10 +45,12 @@ export function AnnotatedIframe({
   const containerRef = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState<IframeViewport>(defaultViewport)
   const [scale, setScale] = useState(1)
-  const [iframeLoaded, setIframeLoaded] = useState(false)
+  const [desktopLoaded, setDesktopLoaded] = useState(false)
+  const [mobileLoaded, setMobileLoaded] = useState(false)
   const [loadFailed, setLoadFailed] = useState(false)
 
   const vp = VIEWPORTS[viewport]
+  const iframeLoaded = viewport === 'desktop' ? desktopLoaded : mobileLoaded
   const markersForViewport = markers.filter((m) => m.viewport === viewport)
 
   // Calculate scale to fit the fixed-size iframe into the container
@@ -69,19 +71,14 @@ export function AnnotatedIframe({
     return () => observer.disconnect()
   }, [updateScale])
 
-  // Reset loaded state on viewport change
+  // Timeout — if neither iframe loads in 15s, show error
   useEffect(() => {
-    setIframeLoaded(false)
-  }, [viewport])
-
-  // Timeout — if iframe doesn't load in 10s, show error
-  useEffect(() => {
-    if (iframeLoaded || loadFailed) return
+    if (desktopLoaded || mobileLoaded || loadFailed) return
     const t = setTimeout(() => {
-      if (!iframeLoaded) setLoadFailed(true)
-    }, 10000)
+      if (!desktopLoaded && !mobileLoaded) setLoadFailed(true)
+    }, 15000)
     return () => clearTimeout(t)
-  }, [iframeLoaded, loadFailed, viewport])
+  }, [desktopLoaded, mobileLoaded, loadFailed])
 
   function handleOverlayClick(e: React.MouseEvent<HTMLDivElement>) {
     if (!editable || !onIframeClick) return
@@ -125,7 +122,7 @@ export function AnnotatedIframe({
         className="relative overflow-hidden bg-white"
         style={{ height: scaledHeight }}
       >
-        {/* Loading spinner */}
+        {/* Loading spinner — only when active viewport hasn't loaded */}
         {!iframeLoaded && (
           <div className="absolute inset-0 flex items-center justify-center z-20 bg-muted">
             <div className="text-center">
@@ -135,31 +132,49 @@ export function AnnotatedIframe({
           </div>
         )}
 
-        {/* Scaled iframe — rendered at exact viewport dimensions */}
-        <div
-          style={{
-            width: vp.width,
-            height: vp.height,
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-          }}
-        >
-          <iframe
-            src={url}
-            width={vp.width}
-            height={vp.height}
-            style={{ border: 'none', display: 'block' }}
-            referrerPolicy="no-referrer-when-downgrade"
-            onLoad={() => setIframeLoaded(true)}
-            onError={() => setLoadFailed(true)}
-          />
-        </div>
+        {/* Both iframes rendered simultaneously, only active one visible.
+            This avoids re-loading when switching viewports. */}
+        {(['desktop', 'mobile'] as const).map((vk) => {
+          const vpDef = VIEWPORTS[vk]
+          const isActive = vk === viewport
+          const vpScale = isActive ? scale : Math.min((containerRef.current?.clientWidth ?? vpDef.width) / vpDef.width, 1)
+          return (
+            <div
+              key={vk}
+              style={{
+                display: isActive ? 'block' : 'none',
+              }}
+            >
+              <div
+                style={{
+                  width: vpDef.width,
+                  height: vpDef.height,
+                  transform: `scale(${isActive ? scale : 0})`,
+                  transformOrigin: 'top left',
+                }}
+              >
+                <iframe
+                  src={url}
+                  width={vpDef.width}
+                  height={vpDef.height}
+                  style={{ border: 'none', display: 'block' }}
+                  referrerPolicy="no-referrer-when-downgrade"
+                  onLoad={() => {
+                    if (vk === 'desktop') setDesktopLoaded(true)
+                    else setMobileLoaded(true)
+                  }}
+                  onError={() => setLoadFailed(true)}
+                />
+              </div>
+            </div>
+          )
+        })}
 
-        {/* Clickable overlay for marker placement — covers the scaled iframe area */}
+        {/* Marker overlay — pointer-events only in editable mode */}
         <div
           className={cn(
             'absolute top-0 left-0 z-10',
-            editable && 'cursor-crosshair',
+            editable ? 'cursor-crosshair' : 'pointer-events-none',
           )}
           style={{
             width: vp.width * scale,
@@ -167,7 +182,7 @@ export function AnnotatedIframe({
           }}
           onClick={handleOverlayClick}
         >
-          {/* Render markers */}
+          {/* Render markers — always pointer-events-auto so they're clickable */}
           {markersForViewport.map((marker, index) => {
             const isActive = marker.id === activeMarkerId
             return (
@@ -175,7 +190,7 @@ export function AnnotatedIframe({
                 key={marker.id}
                 data-marker
                 className={cn(
-                  'absolute flex items-center justify-center rounded-full text-xs font-bold cursor-pointer select-none',
+                  'absolute flex items-center justify-center rounded-full text-xs font-bold cursor-pointer select-none pointer-events-auto',
                   'h-7 w-7 -translate-x-1/2 -translate-y-1/2',
                   isActive
                     ? 'bg-primary text-primary-foreground shadow-lg z-10'
