@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { transcribeAudio } from './transcribe'
 import { analyzeTranscript } from './analyze'
+import { analyzeWithVision } from './vision'
 import { computePriorityScore } from './priority'
 import { generateFollowUpQuestions } from './followup'
 import type { Annotation, ProcessingStatus, Json } from '@/lib/types/database'
@@ -37,7 +38,7 @@ export async function processFeedbackEntry(entryId: string) {
     return
   }
 
-  const [{ data: loopical }, { data: loopicalMedia }] = await Promise.all([
+  const [{ data: loopical }, { data: loopicalMedia }, { data: allLoopicalMedia }] = await Promise.all([
     admin
       .from('loopicals')
       .select('title, description')
@@ -48,6 +49,11 @@ export async function processFeedbackEntry(entryId: string) {
       .select('ocr_text')
       .eq('loopical_id', entry.loopical_id)
       .not('ocr_text', 'is', null),
+    admin
+      .from('loopical_media')
+      .select('media_url, media_type')
+      .eq('loopical_id', entry.loopical_id)
+      .order('order_index', { ascending: true }),
   ])
 
   // Combine OCR text from all media items as document context
@@ -87,7 +93,7 @@ export async function processFeedbackEntry(entryId: string) {
 
     const transcription = await transcribeAudio(transcriptionUrl)
 
-    await admin
+    const { error: transcriptError } = await admin
       .from('feedback_entries')
       .update({
         transcript: transcription.transcript,
@@ -96,6 +102,11 @@ export async function processFeedbackEntry(entryId: string) {
       })
       .eq('id', entryId)
 
+    if (transcriptError) {
+      logger.error({ err: transcriptError, entryId }, 'Failed to save transcript')
+      throw transcriptError
+    }
+
     // Step 2: AI Analysis (skip if transcript is empty/noise)
     const cleanTranscript = transcription.transcript
       .replace(/\[.*?\]/g, '') // remove [background noise] etc.
@@ -103,7 +114,7 @@ export async function processFeedbackEntry(entryId: string) {
 
     if (cleanTranscript.length < 5) {
       // Too short / only noise — skip AI, mark complete with note
-      await admin
+      const { error: noSpeechError } = await admin
         .from('feedback_entries')
         .update({
           summary: 'Keine Sprache erkannt — die Aufnahme enthielt nur Hintergrundgeräusche.',
@@ -114,6 +125,11 @@ export async function processFeedbackEntry(entryId: string) {
           priority_score: 0,
         })
         .eq('id', entryId)
+
+      if (noSpeechError) {
+        logger.error({ err: noSpeechError, entryId }, 'Failed to update no-speech entry')
+        throw noSpeechError
+      }
     } else {
       await updateStatus(entryId, 'analyzing')
 
@@ -121,18 +137,47 @@ export async function processFeedbackEntry(entryId: string) {
         ? `${loopical?.description ?? ''}\n\nSpezifische Frage: ${feedbackPointQuestion}`.trim()
         : loopical?.description ?? null
 
+      // Vision analysis: if loopical has image media and there's an API key, let AI see the image
+      let visionContext: string | null = null
+      const firstImage = (allLoopicalMedia ?? []).find((m) => m.media_type === 'image')
+      if (firstImage?.media_url) {
+        try {
+          const visionResult = await analyzeWithVision({
+            imageUrl: firstImage.media_url,
+            transcript: cleanTranscript,
+            title: loopical?.title ?? '',
+            description,
+            annotations: (entry.annotations as Annotation[] | null) ?? undefined,
+          })
+          if (visionResult) {
+            visionContext = `Visuelle Analyse des Screenshots:\n${visionResult.visualContext}`
+            if (visionResult.identifiedElements.length > 0) {
+              visionContext += `\nErkannte UI-Elemente: ${visionResult.identifiedElements.join(', ')}`
+            }
+            if (visionResult.designObservations.length > 0) {
+              visionContext += `\nDesign-Beobachtungen: ${visionResult.designObservations.join('; ')}`
+            }
+          }
+        } catch (err) {
+          // Vision is non-critical — continue without it
+          logger.warn({ err, entryId }, 'Vision analysis failed, continuing without')
+        }
+      }
+
       const analysis = await analyzeTranscript(cleanTranscript, {
         title: loopical?.title ?? '',
         description,
         annotations: (entry.annotations as Annotation[] | null) ?? undefined,
-        documentContext,
+        documentContext: [documentContext, visionContext].filter(Boolean).join('\n\n---\n\n') || null,
+        loopicalId: entry.loopical_id,
+        feedbackPointId: entry.feedback_point_id,
       })
 
       // Compute priority score for inbox triage
       const priorityScore = computePriorityScore(analysis, entry.audio_duration_seconds)
 
       // Step 3: Save results and mark complete
-      await admin
+      const { error: analysisError } = await admin
         .from('feedback_entries')
         .update({
           summary: analysis.summary,
@@ -141,8 +186,17 @@ export async function processFeedbackEntry(entryId: string) {
           tags: analysis.tags,
           processing_status: 'complete',
           priority_score: priorityScore,
+          severity: analysis.severity ?? null,
+          effort_estimate: analysis.effortEstimate ?? null,
+          usability_category: analysis.usabilityCategory ?? null,
+          ui_element_references: analysis.uiElementReferences ?? null,
         })
         .eq('id', entryId)
+
+      if (analysisError) {
+        logger.error({ err: analysisError, entryId }, 'Failed to save analysis results')
+        throw analysisError
+      }
 
       // Step 4: Write action items to dedicated table
       if (analysis.actionItems.length > 0) {

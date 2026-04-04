@@ -7,7 +7,7 @@ import { ShareDialog } from '@/components/share-dialog'
 import { DropZoneUploader } from '@/components/drop-zone-uploader'
 import { ProjectActionsMenu } from '@/components/project-actions-menu'
 import { ArchivedBanner } from '@/components/archived-banner'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Plus, BarChart3, FileText } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function ProjectDetailPage({
@@ -23,6 +23,7 @@ export default async function ProjectDetailPage({
     .from('projects')
     .select('*')
     .eq('id', id)
+    .eq('owner_id', user.id)
     .single()
 
   if (!project) {
@@ -66,6 +67,20 @@ export default async function ProjectDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href={`/projects/${id}/analytics`}
+            className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Analytics
+          </Link>
+          <Link
+            href={`/projects/${id}/reports`}
+            className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <FileText className="h-4 w-4" />
+            Reports
+          </Link>
           <ShareDialog
             shareToken={project.share_token}
             projectName={project.name}

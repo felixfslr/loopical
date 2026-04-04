@@ -45,16 +45,66 @@ export async function POST(request: Request) {
     // Text-only feedback (no audio/video)
     const textFeedback = formData.get('text') as string | null
 
+    // Reaction-only feedback (emoji)
+    const reaction = formData.get('reaction') as string | null
+
     // Determine media type
     const isVideo = mediaTypeRaw === 'video' || !!video
     const mediaType: FeedbackMediaType = isVideo ? 'video' : 'audio'
     const mediaFile = isVideo ? video : audio
 
-    if (!mediaFile && !textFeedback?.trim() || !loopicalId) {
-      throw new ApiError('Media oder Text und Loopical-ID sind erforderlich.', 400, 'MISSING_PARAMS')
+    if (!mediaFile && !textFeedback?.trim() && !reaction && !loopicalId) {
+      throw new ApiError('Media, Text, Reaktion oder Loopical-ID sind erforderlich.', 400, 'MISSING_PARAMS')
+    }
+
+    if (!loopicalId) {
+      throw new ApiError('Loopical-ID ist erforderlich.', 400, 'MISSING_PARAMS')
     }
 
     const admin = createAdminClient()
+
+    // Handle reaction-only feedback (emoji, no AI processing needed)
+    if (reaction && !mediaFile && !textFeedback?.trim()) {
+      const sentimentMap: Record<string, string> = {
+        '👍': 'positive',
+        '👎': 'critical',
+        '😐': 'neutral',
+        '🐛': 'critical',
+        '💡': 'neutral',
+      }
+      const tagMap: Record<string, string[]> = {
+        '🐛': ['bug'],
+        '💡': ['feature_request'],
+      }
+
+      const { data: entry, error: insertError } = await admin
+        .from('feedback_entries')
+        .insert({
+          loopical_id: loopicalId,
+          audio_url: null,
+          video_url: null,
+          media_type: 'text' as FeedbackMediaType,
+          audio_duration_seconds: null,
+          transcript: reaction,
+          summary: `Reaktion: ${reaction}`,
+          sentiment: sentimentMap[reaction] || 'neutral',
+          tags: tagMap[reaction] || ['general'],
+          processing_status: 'complete',
+          priority_score: 0,
+          author_id: authorId || null,
+          guest_name: guestName || null,
+          feedback_point_id: feedbackPointId || null,
+        })
+        .select('id')
+        .single()
+
+      if (insertError) {
+        logger.error({ err: insertError }, 'Reaction feedback insert failed')
+        throw new ApiError('Reaktion konnte nicht gespeichert werden.', 500, 'INSERT_FAILED')
+      }
+
+      return NextResponse.json({ id: entry.id })
+    }
 
     // Handle text-only feedback (skip transcription, go straight to analysis)
     if (textFeedback?.trim() && !mediaFile) {
@@ -64,7 +114,7 @@ export async function POST(request: Request) {
           loopical_id: loopicalId,
           audio_url: null,
           video_url: null,
-          media_type: 'audio' as FeedbackMediaType,
+          media_type: 'text' as FeedbackMediaType,
           audio_duration_seconds: null,
           transcript: textFeedback.trim(),
           processing_status: 'analyzing',

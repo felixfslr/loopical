@@ -4,9 +4,14 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnnotatedImage } from '@/components/annotated-image'
+import { AnnotationOverlay } from '@/components/annotation-overlay'
 import { MediaRenderer } from '@/components/media-renderer'
 import { FeedbackSubmitForm } from '@/components/feedback-submit-form'
 import { VoiceRecorder } from '@/components/voice-recorder'
+import { VideoRecorder } from '@/components/video-recorder'
+import { RecordingModeSelector, type RecordingMode } from '@/components/recording-mode-selector'
+import { ReactionFeedback } from '@/components/reaction-feedback'
+import { useAnnotations } from '@/hooks/use-annotations'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -79,6 +84,26 @@ export function GuidedFeedbackFlow({
   const [recordings, setRecordings] = useState<Map<string, Recording>>(new Map())
   const guestNameRef = useRef(guestName)
   guestNameRef.current = guestName
+
+  // Annotation support for guided mode (tap-to-annotate on images)
+  const {
+    annotations,
+    addPin,
+    addStroke,
+    undo,
+    clear: clearAnnotations,
+    clearRecordingAnnotations,
+  } = useAnnotations()
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingStartMs, setRecordingStartMs] = useState<number | null>(null)
+  const [isPreview, setIsPreview] = useState(false)
+
+  // Recording mode (audio / webcam / screen)
+  const [recordingMode, setRecordingMode] = useState<RecordingMode>('audio')
+
+  // Auto-advance countdown after submission
+  const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number | null>(null)
+  const autoAdvanceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Session persistence via localStorage
   const sessionKey = `loopical-session-${loopicalId}`
@@ -162,6 +187,43 @@ export function GuidedFeedbackFlow({
   const currentRecording = currentPoint ? recordings.get(currentPoint.id) : undefined
   const hasRecording = !!currentRecording
 
+  // Clear auto-advance on unmount
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimerRef.current) clearInterval(autoAdvanceTimerRef.current)
+    }
+  }, [])
+
+  // Ref to goToNext so we can call it from the timer without dependency issues
+  const goToNextRef = useRef<() => void>(() => {})
+
+  // Start auto-advance countdown when a recording is submitted
+  const startAutoAdvance = useCallback(() => {
+    if (autoAdvanceTimerRef.current) clearInterval(autoAdvanceTimerRef.current)
+    setAutoAdvanceCountdown(2)
+    const start = Date.now()
+    autoAdvanceTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - start
+      const remaining = Math.ceil((2000 - elapsed) / 1000)
+      if (remaining <= 0) {
+        if (autoAdvanceTimerRef.current) clearInterval(autoAdvanceTimerRef.current)
+        autoAdvanceTimerRef.current = null
+        setAutoAdvanceCountdown(null)
+        goToNextRef.current()
+      } else {
+        setAutoAdvanceCountdown(remaining)
+      }
+    }, 100)
+  }, [])
+
+  const cancelAutoAdvance = useCallback(() => {
+    if (autoAdvanceTimerRef.current) {
+      clearInterval(autoAdvanceTimerRef.current)
+      autoAdvanceTimerRef.current = null
+    }
+    setAutoAdvanceCountdown(null)
+  }, [])
+
   // Upload recording in background
   const uploadRecording = useCallback(
     async (pointId: string, blob: Blob, duration: number) => {
@@ -173,11 +235,20 @@ export function GuidedFeedbackFlow({
 
       try {
         const formData = new FormData()
-        formData.append('audio', blob, 'recording.webm')
+        const isVideo = recordingMode === 'webcam' || recordingMode === 'screen'
+        if (isVideo) {
+          formData.append('video', blob, 'recording.webm')
+          formData.append('mediaType', 'video')
+        } else {
+          formData.append('audio', blob, 'recording.webm')
+        }
         formData.append('loopicalId', loopicalId)
         formData.append('durationSeconds', String(duration))
         formData.append('feedbackPointId', pointId)
         if (guestNameRef.current) formData.append('guestName', guestNameRef.current)
+        if (annotations.length > 0) {
+          formData.append('annotations', JSON.stringify(annotations))
+        }
 
         const response = await fetch('/api/feedback', {
           method: 'POST',
@@ -192,6 +263,10 @@ export function GuidedFeedbackFlow({
           if (existing) next.set(pointId, { ...existing, status: 'submitted' })
           return next
         })
+
+        // Clear annotations for this point and start auto-advance
+        clearAnnotations()
+        startAutoAdvance()
       } catch {
         toast.error('Upload fehlgeschlagen — bitte erneut versuchen.')
         setRecordings((prev) => {
@@ -202,12 +277,28 @@ export function GuidedFeedbackFlow({
         })
       }
     },
-    [loopicalId],
+    [loopicalId, annotations, clearAnnotations, startAutoAdvance],
   )
 
   function handleRecordingComplete(blob: Blob, duration: number) {
     if (!currentPoint) return
+    setIsRecording(false)
+    setRecordingStartMs(null)
     uploadRecording(currentPoint.id, blob, duration)
+  }
+
+  function handleRecordingStateChange(recording: boolean, startMs: number | null) {
+    setIsRecording(recording)
+    setRecordingStartMs(recording ? startMs : null)
+  }
+
+  function handlePreviewStateChange(preview: boolean) {
+    setIsPreview(preview)
+  }
+
+  function handleReRecord() {
+    clearRecordingAnnotations()
+    setIsPreview(false)
   }
 
   const submitTextFeedback = useCallback(
@@ -262,6 +353,8 @@ export function GuidedFeedbackFlow({
   }
 
   function goToNext() {
+    cancelAutoAdvance()
+    clearAnnotations()
     // Block navigation if current recording has an error
     if (currentRecording?.status === 'error') {
       toast.error('Bitte lade die Aufnahme zuerst erneut hoch.')
@@ -274,7 +367,12 @@ export function GuidedFeedbackFlow({
     }
   }
 
+  // Keep ref in sync for auto-advance timer
+  goToNextRef.current = goToNext
+
   function goToPrev() {
+    cancelAutoAdvance()
+    clearAnnotations()
     if (currentIndex > 0) {
       setCurrentIndex((i) => i - 1)
     }
@@ -415,16 +513,34 @@ export function GuidedFeedbackFlow({
       <div className="bg-muted/30 order-1 lg:order-2 lg:sticky lg:top-0 lg:self-start lg:max-h-dvh lg:overflow-y-auto flex flex-col">
         <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
           {currentMedia ? (
-            <MediaRenderer
-              mediaUrl={currentMedia.media_url}
-              mediaType={currentMedia.media_type}
-              alt={loopicalTitle}
-              markers={markersForImage}
-              activeMarkerId={currentPoint?.id}
-              metadata={currentMedia.metadata}
-              ocrText={currentMedia.ocr_text}
-              iframeMarkers={iframeMarkers}
-            />
+            currentMedia.media_type === 'image' ? (
+              <AnnotationOverlay
+                src={currentMedia.media_url}
+                alt={loopicalTitle}
+                existingMarkers={markersForImage}
+                activeMarkerId={currentPoint?.id}
+                annotations={annotations}
+                onAddPin={addPin}
+                onAddStroke={addStroke}
+                onUndo={undo}
+                isRecording={isRecording}
+                recordingStartMs={recordingStartMs}
+                mediaIndex={currentMediaIndex}
+                editable={!isPreview && !hasRecording}
+                className="w-full max-h-[50vh] lg:max-h-none"
+              />
+            ) : (
+              <MediaRenderer
+                mediaUrl={currentMedia.media_url}
+                mediaType={currentMedia.media_type}
+                alt={loopicalTitle}
+                markers={markersForImage}
+                activeMarkerId={currentPoint?.id}
+                metadata={currentMedia.metadata}
+                ocrText={currentMedia.ocr_text}
+                iframeMarkers={iframeMarkers}
+              />
+            )
           ) : (
             <div className="py-8 text-center">
               <p className="text-sm text-muted-foreground">
@@ -473,23 +589,53 @@ export function GuidedFeedbackFlow({
               </div>
             )}
 
-            {/* Voice recorder or recording status */}
+            {/* Recording mode selector + recorder */}
             <div className="flex-1 flex flex-col justify-center">
               {hasRecording ? (
                 <RecordingStatus
                   recording={currentRecording!}
                   onRetry={handleRetryUpload}
+                  autoAdvanceCountdown={autoAdvanceCountdown}
+                  onCancelAutoAdvance={cancelAutoAdvance}
                 />
               ) : (
-                <VoiceRecorder
-                  onSubmit={handleRecordingComplete}
-                  onSubmitText={handleTextSubmit}
-                  variant="standalone"
-                />
+                <>
+                  <div className="flex justify-center mb-4">
+                    <RecordingModeSelector
+                      value={recordingMode}
+                      onChange={setRecordingMode}
+                    />
+                  </div>
+                  {recordingMode === 'webcam' || recordingMode === 'screen' ? (
+                    <VideoRecorder
+                      onSubmit={handleRecordingComplete}
+                    />
+                  ) : (
+                    <VoiceRecorder
+                      onSubmit={handleRecordingComplete}
+                      onSubmitText={handleTextSubmit}
+                      variant="standalone"
+                      onRecordingStateChange={handleRecordingStateChange}
+                      onPreviewStateChange={handlePreviewStateChange}
+                      onReRecord={handleReRecord}
+                    />
+                  )}
+                </>
               )}
             </div>
           </motion.div>
         </AnimatePresence>
+
+        {/* Quick reaction option */}
+        {!hasRecording && !isRecording && currentPoint && (
+          <div className="mt-4 pt-4 border-t border-dashed">
+            <ReactionFeedback
+              loopicalId={loopicalId}
+              feedbackPointId={currentPoint.id}
+              guestName={guestName || undefined}
+            />
+          </div>
+        )}
 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-6 pt-4 border-t">
@@ -532,9 +678,13 @@ export function GuidedFeedbackFlow({
 function RecordingStatus({
   recording,
   onRetry,
+  autoAdvanceCountdown,
+  onCancelAutoAdvance,
 }: {
   recording: Recording
   onRetry: () => void
+  autoAdvanceCountdown?: number | null
+  onCancelAutoAdvance?: () => void
 }) {
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -559,6 +709,14 @@ function RecordingStatus({
           </div>
           <p className="text-sm font-medium">Aufnahme gesendet</p>
           <p className="text-xs text-muted-foreground">{formatTime(recording.duration)}</p>
+          {autoAdvanceCountdown != null && autoAdvanceCountdown > 0 && (
+            <button
+              onClick={onCancelAutoAdvance}
+              className="mt-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Weiter in {autoAdvanceCountdown}s… <span className="underline">Abbrechen</span>
+            </button>
+          )}
         </>
       )}
       {recording.status === 'error' && (

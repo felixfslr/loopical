@@ -196,6 +196,7 @@ export interface Database {
           ai_action_items: Json | null
           ai_summary_updated_at: string | null
           context_url: string | null
+          share_link_views: number
         }
         Insert: {
           id?: string
@@ -278,6 +279,10 @@ export interface Database {
           parent_entry_id: string | null
           media_type: FeedbackMediaType
           video_url: string | null
+          severity: number | null
+          effort_estimate: string | null
+          usability_category: string | null
+          ui_element_references: string[] | null
           created_at: string
         }
         Insert: {
@@ -303,6 +308,10 @@ export interface Database {
           parent_entry_id?: string | null
           media_type?: FeedbackMediaType
           video_url?: string | null
+          severity?: number | null
+          effort_estimate?: string | null
+          usability_category?: string | null
+          ui_element_references?: string[] | null
           created_at?: string
         }
         Update: {
@@ -328,6 +337,10 @@ export interface Database {
           parent_entry_id?: string | null
           media_type?: FeedbackMediaType
           video_url?: string | null
+          severity?: number | null
+          effort_estimate?: string | null
+          usability_category?: string | null
+          ui_element_references?: string[] | null
           created_at?: string
         }
         Relationships: [
@@ -413,6 +426,10 @@ export interface Database {
           marker_viewport: MarkerViewport
           order_index: number
           context_url: string | null
+          ai_summary: string | null
+          ai_consensus_points: Json | null
+          ai_sentiment_breakdown: Json | null
+          ai_summary_updated_at: string | null
           created_at: string
         }
         Insert: {
@@ -429,6 +446,10 @@ export interface Database {
           marker_viewport?: MarkerViewport
           order_index?: number
           context_url?: string | null
+          ai_summary?: string | null
+          ai_consensus_points?: Json | null
+          ai_sentiment_breakdown?: Json | null
+          ai_summary_updated_at?: string | null
           created_at?: string
         }
         Update: {
@@ -445,6 +466,10 @@ export interface Database {
           marker_viewport?: MarkerViewport
           order_index?: number
           context_url?: string | null
+          ai_summary?: string | null
+          ai_consensus_points?: Json | null
+          ai_sentiment_breakdown?: Json | null
+          ai_summary_updated_at?: string | null
           created_at?: string
         }
         Relationships: [
